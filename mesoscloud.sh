@@ -273,7 +273,7 @@ docker run -d \
 -v /srv/events:/srv/events \
 -v /srv/logstash:/srv/logstash \
 --name=logstash --net=host --restart=always $LOGSTASH_IMAGE logstash -e \"\
-input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sincedb_path => \\\"/srv/logstash/sincedb\\\" } } output { elasticsearch { } }\
+input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sincedb_path => \\\"/srv/logstash/sincedb\\\" } } output { elasticsearch { protocol => \\\"transport\\\" } }\
 \""
 
 	droplet_ssh $name "$CMD" &
@@ -550,6 +550,31 @@ docker run -d \
     for name in $masters; do
 	wait || err "We couldn't run haproxy-marathon :("
     done
+
+    #
+    say "elasticsearch-curator"
+
+    cat > $M/job.json <<EOF
+{
+  "name": "elasticsearch-curator",
+  "schedule": "R/`date -u +%Y-%m-%dT%H:%M:%SZ`/P1D",
+  "container": {
+    "type": "docker",
+    "image": "$ELASTICSEARCH_IMAGE"
+  },
+  "command": "curator delete indices --older-than 7 --time-unit days --timestring %Y.%m.%d",
+  "cpus": "0.1",
+  "mem": "512"
+}
+EOF
+
+    scp $M/job.json root@`droplet_address_public ${CLUSTER}-1`:
+
+    CMD="\
+curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_address_private ${CLUSTER}-1`:4400/scheduler/iso8601\
+"
+
+    droplet_ssh ${CLUSTER}-1 "$CMD"
 
     #
     mesoscloud_status
