@@ -240,7 +240,10 @@ docker run -d \
 docker run -d \
 -v /srv/elasticsearch/data:/opt/elasticsearch/data \
 -v /srv/elasticsearch/logs:/opt/elasticsearch/logs \
---name=elasticsearch --net=host --restart=always $ELASTICSEARCH_IMAGE\
+--name=elasticsearch --net=host --restart=always $ELASTICSEARCH_IMAGE \
+elasticsearch \
+-Des.discovery.zen.ping.multicast.enabled=false \
+-Des.discovery.zen.ping.unicast.hosts=`droplet_address_private ${CLUSTER}-1`,`droplet_address_private ${CLUSTER}-2`,`droplet_address_private ${CLUSTER}-3`\
 "
 
 	droplet_ssh $name "$CMD" &
