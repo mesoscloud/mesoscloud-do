@@ -253,7 +253,7 @@ docker run -d \
     #
     say "logstash"
 
-    LOGSTASH_IMAGE=mesoscloud/logstash:1.5.3-ubuntu-14.04
+    LOGSTASH_IMAGE=mesoscloud/logstash:1.5.4-ubuntu-14.04
 
     for name in $masters; do
 	droplet_ssh $name "docker pull $LOGSTASH_IMAGE" &
@@ -307,6 +307,14 @@ docker run -d \
 
     for name in $masters; do
 	wait || err "We couldn't run zookeeper :("
+    done
+
+    #
+    for name in $masters; do
+	while true; do
+	    droplet_ssh $name "nc -vz `droplet_address_private $name` 2181" && break
+	    sleep 1
+	done
     done
 
     #
@@ -366,7 +374,7 @@ docker run -d \
     #
     say "marathon"
 
-    MARATHON_IMAGE=mesoscloud/marathon:0.9.1-ubuntu-14.04
+    MARATHON_IMAGE=mesoscloud/marathon:0.10.0-ubuntu-14.04
 
     for name in $masters; do
 	droplet_ssh $name "docker pull $MARATHON_IMAGE" &
@@ -420,6 +428,8 @@ docker run -d \
 
 	CMD="\
 docker run -d \
+-e CHRONOS_HOSTNAME=`droplet_address_private $name` \
+-e CHRONOS_HTTP_ADDRESS=`droplet_address_private $name` \
 -e CHRONOS_HTTP_PORT=4400 \
 -e CHRONOS_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
 -e CHRONOS_ZK_HOSTS=`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181 \
@@ -512,7 +522,7 @@ docker run -d \
     #
     say "haproxy-marathon"
 
-    HAPROXY_MARATHON_IMAGE=mesoscloud/haproxy-marathon:0.1.0-ubuntu-14.04
+    HAPROXY_MARATHON_IMAGE=mesoscloud/haproxy-marathon:0.1.0
 
     for name in $masters; do
 	droplet_ssh $name "docker pull $HAPROXY_MARATHON_IMAGE" &
@@ -673,11 +683,7 @@ droplet_locked() {
 
     info "droplet locked?" "$1"
 
-    id=`droplet_id $1`
-
-    if [ -z "$id" ]; then
-	return 1
-    fi
+    id=`droplet_id $1` || err "We can't find the droplet! :("
 
     curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id > $M/$1.json
 
@@ -760,7 +766,7 @@ droplet_delete() {
     id=`droplet_id $1`
 
     if [ -z "$id" ]; then
-	return 1
+	return
     fi
 
     curl -fsS -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id
