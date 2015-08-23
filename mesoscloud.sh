@@ -195,7 +195,7 @@ grep -Fq \"'* soft nproc 1048576'\" /etc/security/limits.conf || echo '* soft np
     #
     say "events"
 
-    EVENTS_IMAGE=pdericson/events:0.1.0
+    EVENTS_IMAGE=mesoscloud/events:0.1.0
 
     for name in $masters; do
 	droplet_ssh $name "docker pull $EVENTS_IMAGE" &
