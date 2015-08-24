@@ -6,9 +6,23 @@ Create a mesoscloud on DigitalOcean.
 
 ### 1
 
+Generate a DigitalOcean Personal Access Token and update your environment.
+
+*1.1*
+
 https://cloud.digitalocean.com/settings/applications#access-tokens
 
+*1.2*
+
+```
+export DIGITALOCEAN_ACCESS_TOKEN=<access-token>
+```
+
+Note that you can regenerate your access token at any time if you prefer not to save a copy.
+
 ### 2
+
+Generate an SSH Key if you do not already have one.
 
 Warning!  Be careful not to overwrite an existing key
 
@@ -18,35 +32,28 @@ test -e ~/.ssh/id_rsa || ssh-keygen -f ~/.ssh/id_rsa -N ''
 
 ### 3
 
+If you do not have a clone of mesoscloud-do then now is a good time to create one.  You can also run a shell one-liner to execute the latest version of mesoscloud.sh directly.
+
 ```
 git clone git@github.com:mesoscloud/mesoscloud-do.git
 cd mesoscloud-do
+./mesoscloud.sh
+```
+
+**OR**
+
+```
+curl -fLsS https://raw.githubusercontent.com/mesoscloud/mesoscloud-do/master/mesoscloud.sh | sh
 ```
 
 ### 4
 
-```
-export DIGITALOCEAN_ACCESS_TOKEN=...
-./mesoscloud.sh
-```
-
-### 5
-
 https://cloud.digitalocean.com/domains
 
-### What does it look like?
+![docs/screen-1.png](docs/screen-1.png)
 
-[![asciicast](https://asciinema.org/a/4222yk4kw06tryekychqqnczo.png)](https://asciinema.org/a/4222yk4kw06tryekychqqnczo)
+### Screen casts
 
-## What's Next?
+#### Using mesoscloud-do to create a mesoscloud on DigitalOcean
 
-### ssh
-
-e.g.
-
-```
-$ ./mesoscloud.sh ssh nodes hostname
-node-1
-node-3
-node-2
-```
+<script type="text/javascript" src="https://asciinema.org/a/25420.js" id="asciicast-25420" async></script>
