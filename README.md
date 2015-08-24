@@ -52,8 +52,8 @@ https://cloud.digitalocean.com/domains
 
 ![docs/screen-1.png](docs/screen-1.png)
 
-### Tutorials
+## Tutorials
 
-#### Using mesoscloud-do to create a mesoscloud on DigitalOcean
+### Using mesoscloud-do to create a mesoscloud on DigitalOcean
 
 [![asciicast](https://asciinema.org/a/25420.png)](https://asciinema.org/a/25420)
