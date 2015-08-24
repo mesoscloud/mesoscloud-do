@@ -52,7 +52,7 @@ https://cloud.digitalocean.com/domains
 
 ![docs/screen-1.png](docs/screen-1.png)
 
-### Screen casts
+### Tutorials
 
 #### Using mesoscloud-do to create a mesoscloud on DigitalOcean
 
