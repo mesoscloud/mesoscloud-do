@@ -56,4 +56,4 @@ https://cloud.digitalocean.com/domains
 
 #### Using mesoscloud-do to create a mesoscloud on DigitalOcean
 
-<script type="text/javascript" src="https://asciinema.org/a/25420.js" id="asciicast-25420" async></script>
+[![asciicast](https://asciinema.org/a/25420.png)](https://asciinema.org/a/25420)
