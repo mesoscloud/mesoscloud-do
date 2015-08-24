@@ -38,7 +38,7 @@ cd mesoscloud-do
 ./mesoscloud.sh
 ```
 
-**OR**
+*OR*
 
 ```
 curl -fLsS https://raw.githubusercontent.com/mesoscloud/mesoscloud-do/master/mesoscloud.sh | sh
