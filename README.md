@@ -24,8 +24,6 @@ Note that you can regenerate your access token at any time if you prefer not to 
 
 Generate an SSH Key if you do not already have one.
 
-Warning!  Be careful not to overwrite an existing key
-
 ```
 test -e ~/.ssh/id_rsa || ssh-keygen -f ~/.ssh/id_rsa -N ''
 ```
