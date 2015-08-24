@@ -46,6 +46,8 @@ curl -fLsS https://raw.githubusercontent.com/mesoscloud/mesoscloud-do/master/mes
 
 ### 4
 
+At this point you may choose to point a domain at one or more of your nodes using a wildcard DNS record.
+
 https://cloud.digitalocean.com/domains
 
 ![docs/screen-1.png](docs/screen-1.png)
