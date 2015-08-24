@@ -32,7 +32,7 @@ test -e ~/.ssh/id_rsa || ssh-keygen -f ~/.ssh/id_rsa -N ''
 
 ### 3
 
-If you do not have a clone of mesoscloud-do then now is a good time to create one.  You can also run a shell one-liner to execute the latest version of mesoscloud.sh directly.
+You can clone mesoscloud-do now if you haven't already.  You can also run a shell one-liner to execute the latest version of mesoscloud.sh directly.
 
 ```
 git clone git@github.com:mesoscloud/mesoscloud-do.git
