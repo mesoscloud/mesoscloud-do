@@ -2,9 +2,7 @@
 
 # mesoscloud
 #
-# You need:
-# - a token from https://cloud.digitalocean.com/settings/applications#access-tokens
-# - an ssh key (~/.ssh/id_rsa and ~/.ssh/id_rsa.pub)
+# https://github.com/mesoscloud/mesoscloud-do
 
 main() {
 
@@ -160,65 +158,29 @@ main() {
     #
     say "docker"
 
-    # https://github.com/docker/docker/issues/15616
-#    curl -fsS https://apt.dockerproject.org/ > /dev/null || err "apt.dockerproject.org is not working"
-
-    for name in $nodes; do
-	droplet_ssh $name "\
+    droplet_ssh "$nodes" "\
 grep -Fq \"'* hard nofile 1048576'\" /etc/security/limits.conf || echo '* hard nofile 1048576' >> /etc/security/limits.conf; \
 grep -Fq \"'* soft nofile 1048576'\" /etc/security/limits.conf || echo '* soft nofile 1048576' >> /etc/security/limits.conf; \
 grep -Fq \"'* hard nproc 1048576'\" /etc/security/limits.conf || echo '* hard nproc 1048576' >> /etc/security/limits.conf; \
 grep -Fq \"'* soft nproc 1048576'\" /etc/security/limits.conf || echo '* soft nproc 1048576' >> /etc/security/limits.conf\
-" &
-    done
+"
 
-    for name in $nodes; do
-	wait || err "We couldn't update limits :("
-    done
-
-    for name in $nodes; do
-	droplet_ssh $name "which docker > /dev/null || wget -qO- https://get.docker.com/ | sh" &
-    done
-
-    for name in $nodes; do
-	wait || err "We couldn't install docker :("
-    done
-
-    for name in $nodes; do
-	droplet_ssh $name "which docker > /dev/null" &
-    done
-
-    for name in $nodes; do
-	wait || err "We couldn't install docker :("
-    done
+    droplet_ssh "$nodes" "which docker > /dev/null || wget -qO- https://get.docker.com/ | sh"
 
     #
     say "events"
 
     EVENTS_IMAGE=mesoscloud/events:0.1.0
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $EVENTS_IMAGE" &
-    done
+    droplet_ssh "$nodes" "docker pull $EVENTS_IMAGE"
 
-    for name in $masters; do
-	wait || err "We couldn't pull events :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+    for name in $nodes; do
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^events\\\$ || docker run -d \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v /srv/events:/srv/events \
 --name=events --restart=always $EVENTS_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run events :("
     done
 
     #
@@ -226,18 +188,11 @@ docker run -d \
 
     ELASTICSEARCH_IMAGE=mesoscloud/elasticsearch:1.7.1-ubuntu-14.04
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $ELASTICSEARCH_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $ELASTICSEARCH_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull elasticsearch :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^elasticsearch\\\$ || docker run -d \
 -v /srv/elasticsearch/data:/opt/elasticsearch/data \
 -v /srv/elasticsearch/logs:/opt/elasticsearch/logs \
 --name=elasticsearch --net=host --restart=always $ELASTICSEARCH_IMAGE \
@@ -245,12 +200,6 @@ elasticsearch \
 -Des.discovery.zen.ping.multicast.enabled=false \
 -Des.discovery.zen.ping.unicast.hosts=`droplet_address_private ${CLUSTER}-1`,`droplet_address_private ${CLUSTER}-2`,`droplet_address_private ${CLUSTER}-3`\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run elasticsearch :("
     done
 
     #
@@ -258,29 +207,16 @@ elasticsearch \
 
     LOGSTASH_IMAGE=mesoscloud/logstash:1.5.4-ubuntu-14.04
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $LOGSTASH_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $LOGSTASH_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull logstash :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^logstash\\\$ || docker run -d \
 -v /srv/events:/srv/events \
 -v /srv/logstash:/srv/logstash \
 --name=logstash --net=host --restart=always $LOGSTASH_IMAGE logstash -e \"\
 input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sincedb_path => \\\"/srv/logstash/sincedb\\\" } } output { elasticsearch { protocol => \\\"transport\\\" } }\
 \""
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run logstash :("
     done
 
     #
@@ -288,88 +224,39 @@ input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sinced
 
     ZOOKEEPER_IMAGE=mesoscloud/zookeeper:3.4.6-ubuntu-14.04
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $ZOOKEEPER_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $ZOOKEEPER_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull zookeeper :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^zookeeper\\\$ || docker run -d \
 -e MYID=`echo $name | awk -F- '{print $NF}'` \
 -e SERVERS=`droplet_address_private ${CLUSTER}-1`,`droplet_address_private ${CLUSTER}-2`,`droplet_address_private ${CLUSTER}-3` \
 --name=zookeeper --net=host --restart=always $ZOOKEEPER_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run zookeeper :("
-    done
-
-    #
-    for name in $masters; do
 	while true; do
-	    droplet_ssh $name "nc -vz `droplet_address_private $name` 2181" && break
+	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 2181" && break
 	    sleep 1
 	done
     done
-
-    #
-    for name in $masters; do
-	droplet_ssh $name "echo delete /foo | docker run -i --net host --rm $ZOOKEEPER_IMAGE zkCli.sh"
-    done
-
-    set -e
-
-    droplet_ssh ${CLUSTER}-1 "echo create /foo bar | docker run -i --net host --rm $ZOOKEEPER_IMAGE zkCli.sh"
-
-    droplet_ssh ${CLUSTER}-2 "echo get /foo | docker run -i --net host --rm $ZOOKEEPER_IMAGE zkCli.sh 2> /dev/null | grep ^bar"
-
-    droplet_ssh ${CLUSTER}-3 "echo delete /foo | docker run -i --net host --rm $ZOOKEEPER_IMAGE zkCli.sh"
-
-    set +e
 
     #
     say "mesos-master"
 
     MESOS_MASTER_IMAGE=mesoscloud/mesos-master:0.23.0-ubuntu-14.04
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $MESOS_MASTER_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $MESOS_MASTER_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull mesos master :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^master\\\$ || docker run -d \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_QUORUM=2 \
 -e MESOS_ZK=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
---name master --net host --restart always $MESOS_MASTER_IMAGE\
+--name=master --net=host --restart=always $MESOS_MASTER_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run mesos master :("
-    done
-
-    #
-    for name in $masters; do
 	while true; do
-	    droplet_ssh $name "nc -vz `droplet_address_private $name` 5050" && break
+	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5050" && break
 	    sleep 1
 	done
     done
@@ -379,37 +266,21 @@ docker run -d \
 
     MARATHON_IMAGE=mesoscloud/marathon:0.10.0-ubuntu-14.04
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $MARATHON_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $MARATHON_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull marathon :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^marathon\\\$ || docker run -d \
 -e MARATHON_HOSTNAME=`droplet_address_private $name` \
 -e MARATHON_HTTPS_ADDRESS=`droplet_address_private $name` \
 -e MARATHON_HTTP_ADDRESS=`droplet_address_private $name` \
 -e MARATHON_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
 -e MARATHON_ZK=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/marathon \
---name marathon --net host --restart always $MARATHON_IMAGE\
+-e LIBPROCESS_IP=`droplet_address_private $name` \
+--name=marathon --net=host --restart=always $MARATHON_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run marathon :("
-    done
-
-    #
-    for name in $masters; do
 	while true; do
-	    droplet_ssh $name "nc -vz `droplet_address_private $name` 8080" && break
+	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 8080" && break
 	    sleep 1
 	done
     done
@@ -419,37 +290,21 @@ docker run -d \
 
     CHRONOS_IMAGE=mesoscloud/chronos:2.3.4-ubuntu-14.04
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $CHRONOS_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $CHRONOS_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull chronos :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^chronos\\\$ || docker run -d \
 -e CHRONOS_HOSTNAME=`droplet_address_private $name` \
 -e CHRONOS_HTTP_ADDRESS=`droplet_address_private $name` \
 -e CHRONOS_HTTP_PORT=4400 \
 -e CHRONOS_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
 -e CHRONOS_ZK_HOSTS=`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181 \
---name chronos --net host --restart always $CHRONOS_IMAGE\
+-e LIBPROCESS_IP=`droplet_address_private $name` \
+--name=chronos --net=host --restart=always $CHRONOS_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $masters; do
-	wait || err "We couldn't run chronos :("
-    done
-
-    #
-    for name in $masters; do
 	while true; do
-	    droplet_ssh $name "nc -vz `droplet_address_private $name` 4400" && break
+	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 4400" && break
 	    sleep 1
 	done
     done
@@ -459,67 +314,22 @@ docker run -d \
 
     MESOS_SLAVE_IMAGE=mesoscloud/mesos-slave:0.23.0-ubuntu-14.04
 
-    for name in $slaves; do
-	droplet_ssh $name "docker pull $MESOS_SLAVE_IMAGE" &
-    done
+    droplet_ssh "$slaves" "docker pull $MESOS_SLAVE_IMAGE"
 
     for name in $slaves; do
-	wait || err "We couldn't pull mesos slave :("
-    done
-
-    for name in $slaves; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^slave\\\$ || docker run -d \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
 -v /sys/fs/cgroup:/sys/fs/cgroup \
 -v /var/run/docker.sock:/var/run/docker.sock \
---name slave --net host --privileged --restart always $MESOS_SLAVE_IMAGE\
+--name=slave --net=host --privileged --restart=always $MESOS_SLAVE_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $slaves; do
-	wait || err "We couldn't run mesos slave :("
-    done
-
-    #
-    for name in $slaves; do
 	while true; do
-	    droplet_ssh $name "nc -vz `droplet_address_private $name` 5051" && break
+	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5051" && break
 	    sleep 1
 	done
-    done
-
-    #
-    say "haproxy"
-
-    HAPROXY_IMAGE=mesoscloud/haproxy:1.5.14-ubuntu-14.04
-
-    for name in $nodes; do
-	droplet_ssh $name "docker pull $HAPROXY_IMAGE" &
-    done
-
-    for name in $nodes; do
-	wait || err "We couldn't pull haproxy :("
-    done
-
-    for name in $nodes; do
-
-	CMD="\
-docker run -d \
--e ZK=`droplet_address_private $name`:2181 \
---name haproxy --net host --privileged --restart always $HAPROXY_IMAGE\
-"
-
-	droplet_ssh $name "$CMD" &
-    done
-
-    for name in $nodes; do
-	wait || err "We couldn't run haproxy :("
     done
 
     #
@@ -527,28 +337,34 @@ docker run -d \
 
     HAPROXY_MARATHON_IMAGE=mesoscloud/haproxy-marathon:0.1.0
 
-    for name in $masters; do
-	droplet_ssh $name "docker pull $HAPROXY_MARATHON_IMAGE" &
-    done
+    droplet_ssh "$masters" "docker pull $HAPROXY_MARATHON_IMAGE"
 
     for name in $masters; do
-	wait || err "We couldn't pull haproxy-marathon :("
-    done
-
-    for name in $masters; do
-
-	CMD="\
-docker run -d \
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy-marathon\\\$ || docker run -d \
 -e MARATHON=`droplet_address_private $name`:8080 \
 -e ZK=`droplet_address_private $name`:2181 \
---name haproxy-marathon --net host --restart always $HAPROXY_MARATHON_IMAGE\
+--name=haproxy-marathon --net=host --restart=always $HAPROXY_MARATHON_IMAGE\
 "
-
-	droplet_ssh $name "$CMD" &
     done
 
-    for name in $masters; do
-	wait || err "We couldn't run haproxy-marathon :("
+    #
+    say "haproxy"
+
+    HAPROXY_IMAGE=mesoscloud/haproxy:1.5.14-ubuntu-14.04
+
+    droplet_ssh "$nodes" "docker pull $HAPROXY_IMAGE"
+
+    for name in $nodes; do
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy\\\$ || docker run -d \
+-e ZK=`droplet_address_private $name`:2181 \
+--name=haproxy --net=host --privileged --restart=always $HAPROXY_IMAGE\
+"
+	while true; do
+	    nc -vz `droplet_address_public $name` 80 && break
+	    sleep 1
+	done
     done
 
     #
@@ -570,11 +386,9 @@ EOF
 
     scp $M/job.json root@`droplet_address_public ${CLUSTER}-1`:
 
-    CMD="\
+    droplet_ssh ${CLUSTER}-1 "\
 curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_address_private ${CLUSTER}-1`:4400/scheduler/iso8601\
 "
-
-    droplet_ssh ${CLUSTER}-1 "$CMD"
 
     #
     mesoscloud_status
@@ -821,11 +635,23 @@ droplet_ssh() {
     test -n "$1" || err "usage: droplet_ssh <name> <command>"
     test -n "$2" || err "usage: droplet_ssh <name> <command>"
 
-    ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $1` '$2'"
+    pids=""
 
-    info "droplet ssh" $name "$ssh_cmd"
+    for name in $1; do
 
-    eval "$ssh_cmd"
+	ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
+
+	info "droplet ssh" $name "$ssh_cmd"
+
+	eval "$ssh_cmd" &
+
+	pids="$pids $!"
+
+    done
+
+    for pid in $pids; do
+	wait $pid || err "exit status: $?"
+    done
 }
 
 
