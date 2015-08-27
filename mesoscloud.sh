@@ -79,8 +79,20 @@ main() {
 
     #
     M=.mesoscloud
-    rm -rf $M
     mkdir -p $M
+    rm -rf $M/*.json*
+
+    #
+    if [ -z "$SECRET" ]; then
+	if [ -e $M/secret ]; then
+	    SECRET=`cat $M/secret`
+	else
+	    SECRET=`pw 32`
+	    touch $M/secret
+	    chmod 600 $M/secret
+	    echo $SECRET > $M/secret
+	fi
+    fi
 
     #
     mesoscloud_status() {
@@ -184,42 +196,6 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^events\\\$ || docker run -d 
     done
 
     #
-    say "elasticsearch"
-
-    ELASTICSEARCH_IMAGE=mesoscloud/elasticsearch:1.7.1-ubuntu-14.04
-
-    droplet_ssh "$masters" "docker pull $ELASTICSEARCH_IMAGE"
-
-    for name in $masters; do
-	droplet_ssh $name "\
-docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^elasticsearch\\\$ || docker run -d \
--v /srv/elasticsearch/data:/opt/elasticsearch/data \
--v /srv/elasticsearch/logs:/opt/elasticsearch/logs \
---name=elasticsearch --net=host --restart=always $ELASTICSEARCH_IMAGE \
-elasticsearch \
--Des.discovery.zen.ping.multicast.enabled=false \
--Des.discovery.zen.ping.unicast.hosts=`droplet_address_private ${CLUSTER}-1`,`droplet_address_private ${CLUSTER}-2`,`droplet_address_private ${CLUSTER}-3`\
-"
-    done
-
-    #
-    say "logstash"
-
-    LOGSTASH_IMAGE=mesoscloud/logstash:1.5.4-ubuntu-14.04
-
-    droplet_ssh "$masters" "docker pull $LOGSTASH_IMAGE"
-
-    for name in $masters; do
-	droplet_ssh $name "\
-docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^logstash\\\$ || docker run -d \
--v /srv/events:/srv/events \
--v /srv/logstash:/srv/logstash \
---name=logstash --net=host --restart=always $LOGSTASH_IMAGE logstash -e \"\
-input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sincedb_path => \\\"/srv/logstash/sincedb\\\" } } output { elasticsearch { protocol => \\\"transport\\\" } }\
-\""
-    done
-
-    #
     say "zookeeper"
 
     ZOOKEEPER_IMAGE=mesoscloud/zookeeper:3.4.6-ubuntu-14.04
@@ -253,10 +229,35 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^master\\\$ || docker run -d 
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_QUORUM=2 \
 -e MESOS_ZK=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
+-e SECRET=$SECRET \
 --name=master --net=host --restart=always $MESOS_MASTER_IMAGE\
 "
 	while true; do
 	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5050" && break
+	    sleep 1
+	done
+    done
+
+    #
+    say "mesos-slave"
+
+    MESOS_SLAVE_IMAGE=mesoscloud/mesos-slave:0.23.0-ubuntu-14.04
+
+    droplet_ssh "$slaves" "docker pull $MESOS_SLAVE_IMAGE"
+
+    for name in $slaves; do
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^slave\\\$ || docker run -d \
+-e MESOS_HOSTNAME=`droplet_address_private $name` \
+-e MESOS_IP=`droplet_address_private $name` \
+-e MESOS_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
+-e SECRET=$SECRET \
+-v /sys/fs/cgroup:/sys/fs/cgroup \
+-v /var/run/docker.sock:/var/run/docker.sock \
+--name=slave --net=host --privileged --restart=always $MESOS_SLAVE_IMAGE\
+"
+	while true; do
+	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5051" && break
 	    sleep 1
 	done
     done
@@ -277,6 +278,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^marathon\\\$ || docker run -
 -e MARATHON_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
 -e MARATHON_ZK=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/marathon \
 -e LIBPROCESS_IP=`droplet_address_private $name` \
+-e SECRET=$SECRET \
 --name=marathon --net=host --restart=always $MARATHON_IMAGE\
 "
 	while true; do
@@ -301,33 +303,11 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^chronos\\\$ || docker run -d
 -e CHRONOS_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
 -e CHRONOS_ZK_HOSTS=`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181 \
 -e LIBPROCESS_IP=`droplet_address_private $name` \
+-e SECRET=$SECRET \
 --name=chronos --net=host --restart=always $CHRONOS_IMAGE\
 "
 	while true; do
 	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 4400" && break
-	    sleep 1
-	done
-    done
-
-    #
-    say "mesos-slave"
-
-    MESOS_SLAVE_IMAGE=mesoscloud/mesos-slave:0.23.0-ubuntu-14.04
-
-    droplet_ssh "$slaves" "docker pull $MESOS_SLAVE_IMAGE"
-
-    for name in $slaves; do
-	droplet_ssh $name "\
-docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^slave\\\$ || docker run -d \
--e MESOS_HOSTNAME=`droplet_address_private $name` \
--e MESOS_IP=`droplet_address_private $name` \
--e MESOS_MASTER=zk://`droplet_address_private ${CLUSTER}-1`:2181,`droplet_address_private ${CLUSTER}-2`:2181,`droplet_address_private ${CLUSTER}-3`:2181/mesos \
--v /sys/fs/cgroup:/sys/fs/cgroup \
--v /var/run/docker.sock:/var/run/docker.sock \
---name=slave --net=host --privileged --restart=always $MESOS_SLAVE_IMAGE\
-"
-	while true; do
-	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5051" && break
 	    sleep 1
 	done
     done
@@ -365,6 +345,42 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy\\\$ || docker run -d
 	    nc -vz `droplet_address_public $name` 80 && break
 	    sleep 1
 	done
+    done
+
+    #
+    say "elasticsearch"
+
+    ELASTICSEARCH_IMAGE=mesoscloud/elasticsearch:1.7.1-ubuntu-14.04
+
+    droplet_ssh "$masters" "docker pull $ELASTICSEARCH_IMAGE"
+
+    for name in $masters; do
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^elasticsearch\\\$ || docker run -d \
+-v /srv/elasticsearch/data:/opt/elasticsearch/data \
+-v /srv/elasticsearch/logs:/opt/elasticsearch/logs \
+--name=elasticsearch --net=host --restart=always $ELASTICSEARCH_IMAGE \
+elasticsearch \
+-Des.discovery.zen.ping.multicast.enabled=false \
+-Des.discovery.zen.ping.unicast.hosts=`droplet_address_private ${CLUSTER}-1`,`droplet_address_private ${CLUSTER}-2`,`droplet_address_private ${CLUSTER}-3`\
+"
+    done
+
+    #
+    say "logstash"
+
+    LOGSTASH_IMAGE=mesoscloud/logstash:1.5.4-ubuntu-14.04
+
+    droplet_ssh "$masters" "docker pull $LOGSTASH_IMAGE"
+
+    for name in $masters; do
+	droplet_ssh $name "\
+docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^logstash\\\$ || docker run -d \
+-v /srv/events:/srv/events \
+-v /srv/logstash:/srv/logstash \
+--name=logstash --net=host --restart=always $LOGSTASH_IMAGE logstash -e \"\
+input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sincedb_path => \\\"/srv/logstash/sincedb\\\" } } output { elasticsearch { protocol => \\\"transport\\\" } }\
+\""
     done
 
     #
@@ -449,6 +465,10 @@ err() {
     echo "	      U ||----w |"
     echo "		||     ||"
     exit 1
+}
+
+pw() {
+    python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
 }
 
 # droplet
