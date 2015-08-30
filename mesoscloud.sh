@@ -4,6 +4,272 @@
 #
 # https://github.com/mesoscloud/mesoscloud-do
 
+#
+# functions
+#
+
+C='\033[0;36m'
+W='\033[1;39m'
+X='\033[0m'
+
+info() {
+
+    L=$M/.lock
+
+    while [ -e $L ]; do
+	sleep 0.05
+    done
+    touch $L
+
+    msg="$1"
+
+    if [ -n "$2" ]; then
+	msg="$2 $1"
+    fi
+
+    echo "$W$msg$X" >&2
+
+    if [ -n "$3" ]; then
+	echo "$C$3$X" >&2
+    fi
+
+    rm -f $L
+}
+
+say() {
+    echo " _`python -c "print '_' * len('''$@''')"`_"
+    echo "< $@ >"
+    echo " -`python -c "print '-' * len('''$@''')"`-"
+    echo "	\\   $C^${X}__$C^$X"
+    echo "	 \\  (oo)\\_______"
+    echo "	    (__)\\       )\\/\\"
+    echo "		||----w |"
+    echo "		||     ||"
+}
+
+err() {
+    echo " _`python -c "print '_' * len('''$@''')"`_"
+    echo "< $@ >"
+    echo " -`python -c "print '-' * len('''$@''')"`-"
+    echo "	\\   $C^${X}__$C^$X"
+    echo "	 \\  (xx)\\_______"
+    echo "	    (__)\\       )\\/\\"
+    echo "	      U ||----w |"
+    echo "		||     ||"
+    exit 1
+}
+
+pw() {
+    python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
+}
+
+# droplet
+
+droplets() {
+
+    if [ -e $M/droplets.json -a -e $M/droplets.json.cache ]; then
+	return
+    fi
+
+    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets > $M/droplets.json
+
+    if [ $? -ne 0 ]; then
+	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
+    fi
+
+    if ! python -m json.tool $M/droplets.json > /dev/null; then
+	err "We couldn't parse output from api.digitalocean.com  :("
+    fi
+}
+
+droplet_exists() {
+    test -n "$1" || err "usage: droplet_exists <name>"
+
+    info "droplet exists?" "$1"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+}
+
+droplet_summary() {
+    test -n "$1" || err "usage: droplet_summary <name>"
+
+    info "droplet summary" "$1"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat <<EOF
+name            $1
+id              `droplet_id $1`
+status          `droplet_status $1`
+size            `droplet_size $1`
+region          `droplet_region $1`
+image           `droplet_image $1`
+kernel          `droplet_kernel $1`
+address public  `droplet_address_public $1`
+address private `droplet_address_private $1`
+EOF
+
+}
+
+droplet_create() {
+    test -n "$1" || err "usage: droplet_create <name>"
+
+    info "droplet create" "$1"
+
+    curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$REGION\",\"size\":\"$SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $M/droplets.json
+
+    if [ $? -ne 0 ]; then
+	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
+    fi
+
+    if ! python -m json.tool $M/droplets.json > /dev/null; then
+	err "We couldn't parse output from api.digitalocean.com :("
+    fi
+
+}
+
+droplet_locked() {
+    test -n "$1" || exit 1
+
+    info "droplet locked?" "$1"
+
+    id=`droplet_id $1` || err "We can't find the droplet! :("
+
+    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id > $M/$1.json
+
+    if [ $? -ne 0 ]; then
+	err "We couldn't fetch a droplet from api.digitalocean.com :("
+    fi
+
+    if ! python -m json.tool $M/$1.json > /dev/null; then
+	err "We couldn't parse output from api.digitalocean.com :("
+    fi
+
+    cat $M/$1.json | python -c "import json, sys; sys.exit(0 if json.load(sys.stdin)['droplet']['locked'] else 1)"
+}
+
+droplet_id() {
+    test -n "$1" || err "usage: droplet_id <name>"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat $M/droplets.json | python -c "import json, sys; print([d['id'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+}
+
+droplet_image() {
+    test -n "$1" || err "usage: droplet_image <name>"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat $M/droplets.json | python -c "import json, sys; print('%(distribution)s %(name)s' % [d['image'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+}
+
+droplet_kernel() {
+    test -n "$1" || err "usage: droplet_kernel <name>"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat $M/droplets.json | python -c "import json, sys; print('%(version)s' % [d['kernel'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+}
+
+droplet_size() {
+    test -n "$1" || err "usage: droplet_size <name>"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat $M/droplets.json | python -c "import json, sys; print(['%(memory)s MB, %(vcpus)s CPU, %(disk)s GB' % d['size'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+}
+
+droplet_region() {
+    test -n "$1" || err "usage: droplet_region <name>"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat $M/droplets.json | python -c "import json, sys; print([d['region']['name'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+}
+
+droplet_status() {
+    test -n "$1" || err "usage: droplet_status <name>"
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+
+    cat $M/droplets.json | python -c "import json, sys; print([d['status'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+}
+
+droplet_delete() {
+    test -n "$1" || err "usage: droplet_delete <name>"
+
+    info "droplet delete" "$1"
+
+    id=`droplet_id $1`
+
+    if [ -z "$id" ]; then
+	return
+    fi
+
+    curl -fsS -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id
+
+}
+
+droplet_address_public() {
+    test -n "$1" || exit 1
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'public'][0]['ip_address'])"
+}
+
+droplet_address_private() {
+    test -n "$1" || exit 1
+
+    droplets
+
+    cat $M/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'private'][0]['ip_address'])"
+}
+
+droplet_ssh() {
+    test -n "$1" || err "usage: droplet_ssh <name> <command>"
+    test -n "$2" || err "usage: droplet_ssh <name> <command>"
+
+    pids=""
+
+    for name in $1; do
+
+	ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
+
+	info "droplet ssh" $name "$ssh_cmd"
+
+	eval "$ssh_cmd" &
+
+	pids="$pids $!"
+
+    done
+
+    for pid in $pids; do
+	wait $pid || err "exit status: $?"
+    done
+}
+
+#
+#
+#
+
 main() {
 
     # depends
@@ -443,270 +709,6 @@ mount | grep -q \"^s3fs on /data\" || mount /data
     mesoscloud_status
 
 }
-
-
-#
-# functions
-#
-
-C='\033[0;36m'
-W='\033[1;39m'
-X='\033[0m'
-
-info() {
-
-    L=$M/.lock
-
-    while [ -e $L ]; do
-	sleep 0.05
-    done
-    touch $L
-
-    msg="$1"
-
-    if [ -n "$2" ]; then
-	msg="$2 $1"
-    fi
-
-    echo "$W$msg$X" >&2
-
-    if [ -n "$3" ]; then
-	echo "$C$3$X" >&2
-    fi
-
-    rm -f $L
-}
-
-say() {
-    echo " _`python -c "print '_' * len('''$@''')"`_"
-    echo "< $@ >"
-    echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $C^${X}__$C^$X"
-    echo "	 \\  (oo)\\_______"
-    echo "	    (__)\\       )\\/\\"
-    echo "		||----w |"
-    echo "		||     ||"
-}
-
-err() {
-    echo " _`python -c "print '_' * len('''$@''')"`_"
-    echo "< $@ >"
-    echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $C^${X}__$C^$X"
-    echo "	 \\  (xx)\\_______"
-    echo "	    (__)\\       )\\/\\"
-    echo "	      U ||----w |"
-    echo "		||     ||"
-    exit 1
-}
-
-pw() {
-    python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
-}
-
-# droplet
-
-droplets() {
-
-    if [ -e $M/droplets.json -a -e $M/droplets.json.cache ]; then
-	return
-    fi
-
-    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets > $M/droplets.json
-
-    if [ $? -ne 0 ]; then
-	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
-    fi
-
-    if ! python -m json.tool $M/droplets.json > /dev/null; then
-	err "We couldn't parse output from api.digitalocean.com  :("
-    fi
-}
-
-droplet_exists() {
-    test -n "$1" || err "usage: droplet_exists <name>"
-
-    info "droplet exists?" "$1"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-}
-
-droplet_summary() {
-    test -n "$1" || err "usage: droplet_summary <name>"
-
-    info "droplet summary" "$1"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat <<EOF
-name            $1
-id              `droplet_id $1`
-status          `droplet_status $1`
-size            `droplet_size $1`
-region          `droplet_region $1`
-image           `droplet_image $1`
-kernel          `droplet_kernel $1`
-address public  `droplet_address_public $1`
-address private `droplet_address_private $1`
-EOF
-
-}
-
-droplet_create() {
-    test -n "$1" || err "usage: droplet_create <name>"
-
-    info "droplet create" "$1"
-
-    curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$REGION\",\"size\":\"$SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $M/droplets.json
-
-    if [ $? -ne 0 ]; then
-	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
-    fi
-
-    if ! python -m json.tool $M/droplets.json > /dev/null; then
-	err "We couldn't parse output from api.digitalocean.com :("
-    fi
-
-}
-
-droplet_locked() {
-    test -n "$1" || exit 1
-
-    info "droplet locked?" "$1"
-
-    id=`droplet_id $1` || err "We can't find the droplet! :("
-
-    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id > $M/$1.json
-
-    if [ $? -ne 0 ]; then
-	err "We couldn't fetch a droplet from api.digitalocean.com :("
-    fi
-
-    if ! python -m json.tool $M/$1.json > /dev/null; then
-	err "We couldn't parse output from api.digitalocean.com :("
-    fi
-
-    cat $M/$1.json | python -c "import json, sys; sys.exit(0 if json.load(sys.stdin)['droplet']['locked'] else 1)"
-}
-
-droplet_id() {
-    test -n "$1" || err "usage: droplet_id <name>"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $M/droplets.json | python -c "import json, sys; print([d['id'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_image() {
-    test -n "$1" || err "usage: droplet_image <name>"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $M/droplets.json | python -c "import json, sys; print('%(distribution)s %(name)s' % [d['image'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_kernel() {
-    test -n "$1" || err "usage: droplet_kernel <name>"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $M/droplets.json | python -c "import json, sys; print('%(version)s' % [d['kernel'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_size() {
-    test -n "$1" || err "usage: droplet_size <name>"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $M/droplets.json | python -c "import json, sys; print(['%(memory)s MB, %(vcpus)s CPU, %(disk)s GB' % d['size'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_region() {
-    test -n "$1" || err "usage: droplet_region <name>"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $M/droplets.json | python -c "import json, sys; print([d['region']['name'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_status() {
-    test -n "$1" || err "usage: droplet_status <name>"
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $M/droplets.json | python -c "import json, sys; print([d['status'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_delete() {
-    test -n "$1" || err "usage: droplet_delete <name>"
-
-    info "droplet delete" "$1"
-
-    id=`droplet_id $1`
-
-    if [ -z "$id" ]; then
-	return
-    fi
-
-    curl -fsS -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id
-
-}
-
-droplet_address_public() {
-    test -n "$1" || exit 1
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'public'][0]['ip_address'])"
-}
-
-droplet_address_private() {
-    test -n "$1" || exit 1
-
-    droplets
-
-    cat $M/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'private'][0]['ip_address'])"
-}
-
-droplet_ssh() {
-    test -n "$1" || err "usage: droplet_ssh <name> <command>"
-    test -n "$2" || err "usage: droplet_ssh <name> <command>"
-
-    pids=""
-
-    for name in $1; do
-
-	ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
-
-	info "droplet ssh" $name "$ssh_cmd"
-
-	eval "$ssh_cmd" &
-
-	pids="$pids $!"
-
-    done
-
-    for pid in $pids; do
-	wait $pid || err "exit status: $?"
-    done
-}
-
 
 #
 #
