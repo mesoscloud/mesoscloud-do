@@ -270,7 +270,30 @@ droplet_ssh() {
 #
 #
 
-main() {
+mesoscloud_status() {
+    for name in $nodes; do
+        droplet_summary $name
+    done
+
+    echo ""
+    say "It's time to connect to your mesoscloud!"
+    echo ""
+    info "SSH example:"
+    echo ""
+    echo "ssh -L 5050:`droplet_address_private ${CLUSTER}-1`:5050 -L 8080:`droplet_address_private ${CLUSTER}-1`:8080 -L 4400:`droplet_address_private ${CLUSTER}-1`:4400 -L 9200:`droplet_address_private ${CLUSTER}-1`:9200 root@`droplet_address_public ${CLUSTER}-1`"
+    echo ""
+    echo "Note, you may need to substitute private addresses depending on which node is the current mesos master / leader."
+    echo ""
+    echo "open http://localhost:5050  # Mesos"
+    echo "open http://localhost:8080  # Marathon"
+    echo "open http://localhost:4400  # Chronos"
+    echo ""
+}
+
+#
+#
+#
+setup_do() {
 
     # depends
     if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
@@ -361,27 +384,6 @@ main() {
     fi
 
     #
-    mesoscloud_status() {
-	for name in $nodes; do
-	    droplet_summary $name
-	done
-
-	echo ""
-	say "It's time to connect to your mesoscloud!"
-	echo ""
-	info "SSH example:"
-	echo ""
-	echo "ssh -L 5050:`droplet_address_private ${CLUSTER}-1`:5050 -L 8080:`droplet_address_private ${CLUSTER}-1`:8080 -L 4400:`droplet_address_private ${CLUSTER}-1`:4400 -L 9200:`droplet_address_private ${CLUSTER}-1`:9200 root@`droplet_address_public ${CLUSTER}-1`"
-	echo ""
-	echo "Note, you may need to substitute private addresses depending on which node is the current mesos master / leader."
-	echo ""
-	echo "open http://localhost:5050  # Mesos"
-	echo "open http://localhost:8080  # Marathon"
-	echo "open http://localhost:4400  # Chronos"
-	echo ""
-    }
-
-    #
     if [ "$1" = delete ]; then
 	say "We're going to delete your droplets ($nodes)."
 
@@ -432,8 +434,9 @@ main() {
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_docker() {
     say "docker"
 
     droplet_ssh "$nodes" "\
@@ -444,8 +447,9 @@ grep -Fq \"'* soft nproc 1048576'\" /etc/security/limits.conf || echo '* soft np
 "
 
     droplet_ssh "$nodes" "which docker > /dev/null || wget -qO- https://get.docker.com/ | sh"
+}
 
-    #
+setup_events() {
     say "events"
 
     EVENTS_IMAGE=mesoscloud/events:0.1.0
@@ -460,8 +464,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^events\\\$ || docker run -d 
 --name=events --restart=always $EVENTS_IMAGE\
 "
     done
+}
 
-    #
+setup_zookeeper() {
     say "zookeeper"
 
     ZOOKEEPER_IMAGE=mesoscloud/zookeeper:3.4.6-ubuntu-14.04
@@ -480,8 +485,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^zookeeper\\\$ || docker run 
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_mesos_master() {
     say "mesos-master"
 
     MESOS_MASTER_IMAGE=mesoscloud/mesos-master:0.23.0-ubuntu-14.04
@@ -503,8 +509,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^master\\\$ || docker run -d 
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_mesos_slave() {
     say "mesos-slave"
 
     MESOS_SLAVE_IMAGE=mesoscloud/mesos-slave:0.23.0-ubuntu-14.04
@@ -527,8 +534,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^slave\\\$ || docker run -d \
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_marathon() {
     say "marathon"
 
     MARATHON_IMAGE=mesoscloud/marathon:0.10.0-ubuntu-14.04
@@ -552,8 +560,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^marathon\\\$ || docker run -
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_chronos() {
     say "chronos"
 
     CHRONOS_IMAGE=mesoscloud/chronos:2.3.4-ubuntu-14.04
@@ -577,8 +586,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^chronos\\\$ || docker run -d
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_haproxy_marathon() {
     say "haproxy-marathon"
 
     HAPROXY_MARATHON_IMAGE=mesoscloud/haproxy-marathon:0.1.0
@@ -593,8 +603,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy-marathon\\\$ || dock
 --name=haproxy-marathon --net=host --restart=always $HAPROXY_MARATHON_IMAGE\
 "
     done
+}
 
-    #
+setup_haproxy() {
     say "haproxy"
 
     HAPROXY_IMAGE=mesoscloud/haproxy:1.5.14-ubuntu-14.04
@@ -612,8 +623,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy\\\$ || docker run -d
 	    sleep 1
 	done
     done
+}
 
-    #
+setup_elaticsearch() {
     say "elasticsearch"
 
     ELASTICSEARCH_IMAGE=mesoscloud/elasticsearch:1.7.1-ubuntu-14.04
@@ -631,8 +643,9 @@ elasticsearch \
 -Des.discovery.zen.ping.unicast.hosts=`droplet_address_private ${CLUSTER}-1`,`droplet_address_private ${CLUSTER}-2`,`droplet_address_private ${CLUSTER}-3`\
 "
     done
+}
 
-    #
+setup_logstash() {
     say "logstash"
 
     LOGSTASH_IMAGE=mesoscloud/logstash:1.5.4-ubuntu-14.04
@@ -648,8 +661,9 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^logstash\\\$ || docker run -
 input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sincedb_path => \\\"/srv/logstash/sincedb\\\" } } output { elasticsearch { protocol => \\\"transport\\\" } }\
 \""
     done
+}
 
-    #
+setup_elasticsearch_curator() {
     say "elasticsearch-curator"
 
     cat > $M/job.json <<EOF
@@ -671,8 +685,9 @@ EOF
     droplet_ssh ${CLUSTER}-1 "\
 curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_address_private ${CLUSTER}-1`:4400/scheduler/iso8601\
 "
+}
 
-    #
+setup_s3fs() {
     say "s3fs"
 
     droplet_ssh "$nodes" "\
@@ -704,10 +719,29 @@ mkdir -p /data
     droplet_ssh "$nodes" "\
 mount | grep -q \"^s3fs on /data\" || mount /data
 "
+}
 
-    #
+#
+#
+#
+
+main() {
+    setup_do
+    setup_docker
+    setup_events
+    setup_zookeeper
+    setup_mesos_master
+    setup_mesos_slave
+    setup_marathon
+    setup_chronos
+    setup_haproxy_marathon
+    setup_haproxy
+    setup_elasticsearch
+    setup_logstash
+    setup_elasticsearch_curator
+    setup_s3fs
+
     mesoscloud_status
-
 }
 
 #
