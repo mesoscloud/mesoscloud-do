@@ -407,6 +407,39 @@ curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_addr
 "
 
     #
+    say "s3fs"
+
+    droplet_ssh "$nodes" "\
+which s3fs > /dev/null || {
+apt-get install -y automake autotools-dev g++ git libcurl4-gnutls-dev libfuse-dev libssl-dev libxml2-dev make pkg-config &&
+curl -fL https://github.com/s3fs-fuse/s3fs-fuse/archive/v1.79.tar.gz | tar xzf - -C /usr/src &&
+cd /usr/src/s3fs-fuse-1.79 &&
+./autogen.sh &&
+./configure --prefix=/usr &&
+make &&
+make install;
+}\
+"
+
+    droplet_ssh "$nodes" "\
+touch /etc/s3fs &&
+chmod 600 /etc/s3fs &&
+echo $AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY > /etc/s3fs
+"
+
+    droplet_ssh "$nodes" "\
+grep -Fq s3fs /etc/fstab || echo \"s3fs#$BUCKET /data fuse allow_other,passwd_file=/etc/s3fs 0 0\" >> /etc/fstab
+"
+
+    droplet_ssh "$nodes" "\
+mkdir -p /data
+"
+
+    droplet_ssh "$nodes" "\
+mount | grep -q \"^s3fs on /data\" || mount /data
+"
+
+    #
     mesoscloud_status
 
 }
