@@ -723,7 +723,7 @@ input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sinced
 }
 
 setup_elasticsearch_curator() {
-    say "Let's setup the elasticsearch-curator container"
+    say "Let's setup the elasticsearch-curator job"
 
     cat > $MESOSCLOUD_TMP/job.json <<EOF
 {
