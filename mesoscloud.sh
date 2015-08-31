@@ -34,6 +34,8 @@ MESOSCLOUD_BUCKET=`config MESOSCLOUD_BUCKET ""`
 
 # do
 DIGITALOCEAN_ACCESS_TOKEN=`config DIGITALOCEAN_ACCESS_TOKEN ""`
+DIGITALOCEAN_REGION=`config DIGITALOCEAN_REGION nyc3`
+DIGITALOCEAN_SIZE=`config DIGITALOCEAN_SIZE 4gb`
 
 # images
 IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.1.0`
@@ -68,6 +70,8 @@ bucket: $MESOSCLOUD_BUCKET
 
 [digitalocean]
 access_token: $DIGITALOCEAN_ACCESS_TOKEN
+region: $DIGITALOCEAN_REGION
+size: $DIGITALOCEAN_SIZE
 
 [image]
 events: $IMAGE_EVENTS
@@ -220,7 +224,7 @@ droplet_create() {
 
     info "droplet create" "$1"
 
-    curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$REGION\",\"size\":\"$SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $MESOSCLOUD_TMP/droplets.json
+    curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$DIGITALOCEAN_REGION\",\"size\":\"$DIGITALOCEAN_SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $MESOSCLOUD_TMP/droplets.json
 
     if [ $? -ne 0 ]; then
 	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
@@ -410,11 +414,6 @@ setup_do() {
     fi
 
     SSH_KEY_FINGERPRINT=`ssh-keygen -f ~/.ssh/id_rsa.pub -l | awk '{print $2}'`
-
-    #
-    SIZE=${SIZE:-4gb}
-
-    REGION=${REGION:-nyc3}
 
     #
     if [ "$1" = ssh ]; then
