@@ -140,7 +140,7 @@ err() {
 }
 
 #
-# do functions
+# droplet functions
 #
 
 droplets() {
@@ -338,27 +338,11 @@ droplet_ssh() {
     done
 }
 
-mesoscloud_status() {
-    for name in $MESOSCLOUD_NODES; do
-        droplet_summary $name
-    done
+#
+# do functions
+#
 
-    echo ""
-    say "It's time to connect to your mesoscloud!"
-    echo ""
-    info "SSH example:"
-    echo ""
-    echo "ssh -L 5050:`droplet_address_private ${MESOSCLOUD_NAME}-1`:5050 -L 8080:`droplet_address_private ${MESOSCLOUD_NAME}-1`:8080 -L 4400:`droplet_address_private ${MESOSCLOUD_NAME}-1`:4400 -L 9200:`droplet_address_private ${MESOSCLOUD_NAME}-1`:9200 root@`droplet_address_public ${MESOSCLOUD_NAME}-1`"
-    echo ""
-    echo "Note, you may need to substitute private addresses depending on which node is the current mesos master / leader."
-    echo ""
-    echo "open http://localhost:5050  # Mesos"
-    echo "open http://localhost:8080  # Marathon"
-    echo "open http://localhost:4400  # Chronos"
-    echo ""
-}
-
-setup_do() {
+do_setup() {
 
     # depends
     if [ "$DIGITALOCEAN_ACCESS_TOKEN" = "" ]; then
@@ -376,72 +360,10 @@ setup_do() {
     SSH_KEY_FINGERPRINT=`ssh-keygen -f ~/.ssh/id_rsa.pub -l | awk '{print $2}'`
 
     #
-    if [ "$1" = ssh ]; then
-	touch $MESOSCLOUD_TMP/droplets.json.cache
-
-	shift
-	name=$1
-
-	shift
-	case $name in
-	    nodes)
-		for name in $MESOSCLOUD_NODES; do
-		    ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
-		done
-		for name in $MESOSCLOUD_NODES; do
-		    wait
-		done
-		exit 0
-		;;
-	    masters)
-		for name in $MESOSCLOUD_MASTERS; do
-		    ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
-		done
-		for name in $MESOSCLOUD_MASTERS; do
-		    wait
-		done
-		exit 0
-		;;
-            slaves)
-		for name in $MESOSCLOUD_SLAVES; do
-		    ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
-		done
-		for name in $MESOSCLOUD_SLAVES; do
-		    wait
-		done
-		exit 0
-		;;
-	    *)
-		exec ssh -o BatchMode=yes root@`droplet_address_public $name` "$@"
-		;;
-	esac
-    fi
-
-    #
-    rm -rf $MESOSCLOUD_TMP
     mkdir -p $MESOSCLOUD_TMP
+}
 
-    #
-    if [ "$1" = delete ]; then
-	say "We're going to delete your droplets ($MESOSCLOUD_NODES)."
-
-	for name in $MESOSCLOUD_NODES; do
-	    droplet_delete $name
-	done
-
-	exit 0
-    fi
-
-    #
-    if [ "$1" = status ]; then
-	touch $MESOSCLOUD_TMP/droplets.json.cache
-
-	mesoscloud_status
-
-	exit 0
-    fi
-
-    #
+do_create() {
     say "We're going to create your droplets ($MESOSCLOUD_NODES)!"
 
     for name in $MESOSCLOUD_NODES; do
@@ -472,6 +394,74 @@ setup_do() {
 	    sleep 1
 	done
     done
+}
+
+do_ssh() {
+    touch $MESOSCLOUD_TMP/droplets.json.cache
+
+    shift
+    name=$1
+
+    shift
+    case $name in
+	nodes)
+	    for name in $MESOSCLOUD_NODES; do
+		ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
+	    done
+	    for name in $MESOSCLOUD_NODES; do
+		wait
+	    done
+	    ;;
+	masters)
+	    for name in $MESOSCLOUD_MASTERS; do
+		ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
+	    done
+	    for name in $MESOSCLOUD_MASTERS; do
+		wait
+	    done
+	    ;;
+        slaves)
+	    for name in $MESOSCLOUD_SLAVES; do
+		ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
+	    done
+	    for name in $MESOSCLOUD_SLAVES; do
+		wait
+	    done
+	    ;;
+	*)
+	    exec ssh -o BatchMode=yes root@`droplet_address_public $name` "$@"
+	    ;;
+    esac
+}
+
+do_delete() {
+    say "We're going to delete your droplets ($MESOSCLOUD_NODES)."
+
+    for name in $MESOSCLOUD_NODES; do
+	droplet_delete $name
+    done
+}
+
+do_status() {
+    touch $MESOSCLOUD_TMP/droplets.json.cache
+
+    for name in $MESOSCLOUD_NODES; do
+        droplet_summary $name
+    done
+
+    echo ""
+    say "It's time to connect to your mesoscloud!"
+    echo ""
+    info "SSH example:"
+    echo ""
+    echo "ssh -L 5050:`droplet_address_private ${MESOSCLOUD_NAME}-1`:5050 -L 8080:`droplet_address_private ${MESOSCLOUD_NAME}-1`:8080 -L 4400:`droplet_address_private ${MESOSCLOUD_NAME}-1`:4400 -L 9200:`droplet_address_private ${MESOSCLOUD_NAME}-1`:9200 root@`droplet_address_public ${MESOSCLOUD_NAME}-1`"
+    echo ""
+    echo "Note, you may need to substitute private addresses depending on which node is the current mesos master / leader."
+    echo ""
+    echo "open http://localhost:5050  # Mesos"
+    echo "open http://localhost:8080  # Marathon"
+    echo "open http://localhost:4400  # Chronos"
+    echo ""
 }
 
 #
@@ -716,7 +706,14 @@ curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_addr
 main() {
     config_write
 
-    setup_do "$@"
+    do_setup "$@"
+
+    if [ -n "$1" ]; then
+	eval do_$1 "$@"
+	exit 0
+    fi
+
+    do_create "$@"
 
     setup_docker
     setup_events
@@ -731,9 +728,7 @@ main() {
     setup_logstash
     setup_elasticsearch_curator
 
-    mesoscloud_status
+    do_status
 }
 
-if [ -z "$LIBRARY" ]; then
-    main "$@"
-fi
+main "$@"
