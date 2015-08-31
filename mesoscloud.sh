@@ -9,6 +9,12 @@
 #
 
 config() {
+    # Return config: from 1. environment (eval \$$1), 2. mesoscloud.cfg or 3. default ($2)
+    eval x=\$$1
+    if [ -n "$x" ]; then
+	echo "$x"
+	return
+    fi
     a=`echo $1 | cut -d_ -f1 | tr '[:upper:]' '[:lower:]'`
     b=`echo $1 | cut -d_ -f2- | tr '[:upper:]' '[:lower:]'`
     python -c "import ConfigParser; config = ConfigParser.SafeConfigParser(); config.read('mesoscloud.cfg'); print config.get('$a', '$b')" 2> /dev/null || echo "$2"
