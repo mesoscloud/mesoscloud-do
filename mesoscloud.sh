@@ -322,14 +322,10 @@ droplet_ssh() {
     test -n "$2" || err "usage: droplet_ssh <name> <command>"
 
     pids=""
-
     for name in $1; do
 	ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
-
 	info "droplet ssh" $name "$ssh_cmd"
-
 	eval "$ssh_cmd" &
-
 	pids="$pids $!"
     done
 
