@@ -363,6 +363,13 @@ do_setup() {
     mkdir -p $MESOSCLOUD_TMP
 }
 
+do_setup_cache() {
+    rm -rf $MESOSCLOUD_TMP
+    mkdir -p $MESOSCLOUD_TMP
+    droplets
+    touch $MESOSCLOUD_TMP/droplets.json.cache
+}
+
 do_create() {
     say "We're going to create your droplets ($MESOSCLOUD_NODES)!"
 
@@ -436,6 +443,8 @@ do_ssh() {
 }
 
 do_delete() {
+    do_setup_cache
+
     say "We're going to delete your droplets ($MESOSCLOUD_NODES)."
 
     for name in $MESOSCLOUD_NODES; do
@@ -446,6 +455,8 @@ do_delete() {
 }
 
 do_status() {
+    do_setup_cache
+
     for name in $MESOSCLOUD_NODES; do
         droplet_summary $name
     done
