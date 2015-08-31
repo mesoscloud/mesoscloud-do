@@ -20,6 +20,11 @@ config() {
     python -c "import ConfigParser; config = ConfigParser.SafeConfigParser(); config.read('mesoscloud.cfg'); print config.get('$a', '$b')" 2> /dev/null || echo "$2"
 }
 
+password() {
+    # Return a random password of length $1
+    python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
+}
+
 # cluster
 MESOSCLOUD_NAME=`config MESOSCLOUD_NAME foo`
 MESOSCLOUD_NODES=`config MESOSCLOUD_NODES "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
@@ -40,6 +45,9 @@ IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-maratho
 IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu-14.04`
 IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.1-ubuntu-14.04`
 IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu-14.04`
+
+# mesos
+MESOS_SECRET=`config MESOS_SECRET "$(password 32)"`
 
 # mesoscloud.cfg.current
 config_current() {
@@ -66,6 +74,9 @@ haproxy_marathon: $IMAGE_HAPROXY_MARATHON
 haproxy: $IMAGE_HAPROXY
 elasticsearch: $IMAGE_ELASTICSEARCH
 logstash: $IMAGE_LOGSTASH
+
+[mesos]
+secret: $MESOS_SECRET
 EOF
 }
 
@@ -122,10 +133,6 @@ err() {
     echo "	      U ||----w |"
     echo "		||     ||"
     exit 1
-}
-
-pw() {
-    python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
 }
 
 #
@@ -434,18 +441,6 @@ setup_do() {
     rm -rf $M/*.json*
 
     #
-    if [ -z "$SECRET" ]; then
-	if [ -e $M/secret ]; then
-	    SECRET=`cat $M/secret`
-	else
-	    SECRET=`pw 32`
-	    touch $M/secret
-	    chmod 600 $M/secret
-	    echo $SECRET > $M/secret
-	fi
-    fi
-
-    #
     if [ "$1" = delete ]; then
 	say "We're going to delete your droplets ($MESOSCLOUD_NODES)."
 
@@ -557,7 +552,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^master\\\$ || docker run -d 
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_QUORUM=2 \
 -e MESOS_ZK=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
--e SECRET=$SECRET \
+-e SECRET=$MESOS_SECRET \
 --name=master --net=host --restart=always $IMAGE_MESOS_MASTER\
 "
 	while true; do
@@ -578,7 +573,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^slave\\\$ || docker run -d \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
--e SECRET=$SECRET \
+-e SECRET=$MESOS_SECRET \
 -v /sys/fs/cgroup:/sys/fs/cgroup \
 -v /var/run/docker.sock:/var/run/docker.sock \
 --name=slave --net=host --privileged --restart=always $IMAGE_MESOS_SLAVE\
@@ -604,7 +599,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^marathon\\\$ || docker run -
 -e MARATHON_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
 -e MARATHON_ZK=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/marathon \
 -e LIBPROCESS_IP=`droplet_address_private $name` \
--e SECRET=$SECRET \
+-e SECRET=$MESOS_SECRET \
 --name=marathon --net=host --restart=always $IMAGE_MARATHON\
 "
 	while true; do
@@ -628,7 +623,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^chronos\\\$ || docker run -d
 -e CHRONOS_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
 -e CHRONOS_ZK_HOSTS=`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181 \
 -e LIBPROCESS_IP=`droplet_address_private $name` \
--e SECRET=$SECRET \
+-e SECRET=$MESOS_SECRET \
 --name=chronos --net=host --restart=always $IMAGE_CHRONOS\
 "
 	while true; do
