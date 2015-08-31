@@ -461,19 +461,14 @@ do_status() {
         droplet_summary $name
     done
 
-    echo ""
     say "It's time to connect to your mesoscloud!"
-    echo ""
+
     info "SSH example:"
     echo ""
-    echo "ssh -L 5050:`droplet_address_private ${MESOSCLOUD_NAME}-1`:5050 -L 8080:`droplet_address_private ${MESOSCLOUD_NAME}-1`:8080 -L 4400:`droplet_address_private ${MESOSCLOUD_NAME}-1`:4400 -L 9200:`droplet_address_private ${MESOSCLOUD_NAME}-1`:9200 root@`droplet_address_public ${MESOSCLOUD_NAME}-1`"
-    echo ""
-    echo "Note, you may need to substitute private addresses depending on which node is the current mesos master / leader."
-    echo ""
-    echo "open http://localhost:5050  # Mesos"
-    echo "open http://localhost:8080  # Marathon"
-    echo "open http://localhost:4400  # Chronos"
-    echo ""
+
+    echo "A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_public ${MESOSCLOUD_NAME}-2`; C=`droplet_address_public ${MESOSCLOUD_NAME}-3`; D=`droplet_address_private ${MESOSCLOUD_NAME}-1`; E=`droplet_address_private ${MESOSCLOUD_NAME}-2`; F=`droplet_address_private ${MESOSCLOUD_NAME}-3`"
+
+    echo "ssh -L 5050:\$D:5050 -L 8080:\$D:8080 -L 4400:\$D:4400 -L 9200:\$D:9200 root@\$A"
 }
 
 #
