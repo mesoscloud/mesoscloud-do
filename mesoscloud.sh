@@ -87,56 +87,42 @@ EOF
 
 MESOSCLOUD_TMP=.mesoscloud
 
+CYAN='\033[0;36m'
+WHITE='\033[1;39m'
+RESET='\033[0m'
+
+LOCK=$MESOSCLOUD_TMP/.lock
+
 #
 # functions
 #
 
-C='\033[0;36m'
-W='\033[1;39m'
-X='\033[0m'
-
 info() {
-
-    L=$MESOSCLOUD_TMP/.lock
-
-    while [ -e $L ]; do
+    # best effort only
+    while [ -e $LOCK ]; do
 	sleep 0.05
     done
-    touch $L
-
-    msg="$1"
+    touch $LOCK
 
     if [ -n "$2" ]; then
-	msg="$2 $1"
+	echo "$WHITE$2 $1$RESET" >&2
+    else
+	echo "$WHITE$1$RESET" >&2
     fi
-
-    echo "$W$msg$X" >&2
 
     if [ -n "$3" ]; then
-	echo "$C$3$X" >&2
+	echo "$CYAN$3$RESET" >&2
     fi
-
-    rm -f $L
+    rm -f $LOCK
 }
 
 say() {
     echo " _`python -c "print '_' * len('''$@''')"`_"
     echo "< $@ >"
     echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $C^${X}__$C^$X"
+    echo "	\\   $CYAN^${RESET}__$CYAN^$RESET"
     echo "	 \\  (oo)\\_______"
     echo "	    (__)\\       )\\/\\"
-    echo "		||----w |"
-    echo "		||     ||"
-}
-
-warn() {
-    echo " _______`python -c "print '_' * len('''$@''')"`_"
-    echo "< Note! $@ >"
-    echo " -------`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $C^${X}__$C^$X"
-    echo "	 \\  (OO)\\_______   /"
-    echo "	    (__)\\       )\\/"
     echo "		||----w |"
     echo "		||     ||"
 }
@@ -145,7 +131,7 @@ err() {
     echo " _`python -c "print '_' * len('''$@''')"`_"
     echo "< $@ >"
     echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $C^${X}__$C^$X"
+    echo "	\\   $CYAN^${RESET}__$CYAN^$RESET"
     echo "	 \\  (xx)\\_______"
     echo "	    (__)\\       )\\/\\"
     echo "	      U ||----w |"
@@ -154,11 +140,10 @@ err() {
 }
 
 #
-# droplet functions
+# do functions
 #
 
 droplets() {
-
     if [ -e $MESOSCLOUD_TMP/droplets.json -a -e $MESOSCLOUD_TMP/droplets.json.cache ]; then
 	return
     fi
@@ -204,7 +189,6 @@ kernel          `droplet_kernel $1`
 address public  `droplet_address_public $1`
 address private `droplet_address_private $1`
 EOF
-
 }
 
 droplet_create() {
@@ -221,7 +205,6 @@ droplet_create() {
     if ! python -m json.tool $MESOSCLOUD_TMP/droplets.json > /dev/null; then
 	err "We couldn't parse output from api.digitalocean.com :("
     fi
-
 }
 
 droplet_locked() {
@@ -316,7 +299,6 @@ droplet_delete() {
     fi
 
     curl -fsS -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id
-
 }
 
 droplet_address_public() {
@@ -342,7 +324,6 @@ droplet_ssh() {
     pids=""
 
     for name in $1; do
-
 	ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
 
 	info "droplet ssh" $name "$ssh_cmd"
@@ -350,17 +331,12 @@ droplet_ssh() {
 	eval "$ssh_cmd" &
 
 	pids="$pids $!"
-
     done
 
     for pid in $pids; do
 	wait $pid || err "exit status: $?"
     done
 }
-
-#
-# do functions
-#
 
 mesoscloud_status() {
     for name in $MESOSCLOUD_NODES; do
@@ -381,10 +357,6 @@ mesoscloud_status() {
     echo "open http://localhost:4400  # Chronos"
     echo ""
 }
-
-#
-# setup functions
-#
 
 setup_do() {
 
@@ -501,6 +473,10 @@ setup_do() {
 	done
     done
 }
+
+#
+# setup functions
+#
 
 setup_docker() {
     say "Let's setup the docker daemon"
