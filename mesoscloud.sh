@@ -81,6 +81,11 @@ EOF
 }
 
 #
+# internal config
+#
+MESOSCLOUD_TMP=.mesoscloud
+
+#
 # functions
 #
 
@@ -90,7 +95,7 @@ X='\033[0m'
 
 info() {
 
-    L=$M/.lock
+    L=$MESOSCLOUD_TMP/.lock
 
     while [ -e $L ]; do
 	sleep 0.05
@@ -141,17 +146,17 @@ err() {
 
 droplets() {
 
-    if [ -e $M/droplets.json -a -e $M/droplets.json.cache ]; then
+    if [ -e $MESOSCLOUD_TMP/droplets.json -a -e $MESOSCLOUD_TMP/droplets.json.cache ]; then
 	return
     fi
 
-    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets > $M/droplets.json
+    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets > $MESOSCLOUD_TMP/droplets.json
 
     if [ $? -ne 0 ]; then
 	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
     fi
 
-    if ! python -m json.tool $M/droplets.json > /dev/null; then
+    if ! python -m json.tool $MESOSCLOUD_TMP/droplets.json > /dev/null; then
 	err "We couldn't parse output from api.digitalocean.com  :("
     fi
 }
@@ -163,7 +168,7 @@ droplet_exists() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 }
 
 droplet_summary() {
@@ -173,7 +178,7 @@ droplet_summary() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
     cat <<EOF
 name            $1
@@ -194,13 +199,13 @@ droplet_create() {
 
     info "droplet create" "$1"
 
-    curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$REGION\",\"size\":\"$SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $M/droplets.json
+    curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$REGION\",\"size\":\"$SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $MESOSCLOUD_TMP/droplets.json
 
     if [ $? -ne 0 ]; then
 	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
     fi
 
-    if ! python -m json.tool $M/droplets.json > /dev/null; then
+    if ! python -m json.tool $MESOSCLOUD_TMP/droplets.json > /dev/null; then
 	err "We couldn't parse output from api.digitalocean.com :("
     fi
 
@@ -213,17 +218,17 @@ droplet_locked() {
 
     id=`droplet_id $1` || err "We can't find the droplet! :("
 
-    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id > $M/$1.json
+    curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id > $MESOSCLOUD_TMP/$1.json
 
     if [ $? -ne 0 ]; then
 	err "We couldn't fetch a droplet from api.digitalocean.com :("
     fi
 
-    if ! python -m json.tool $M/$1.json > /dev/null; then
+    if ! python -m json.tool $MESOSCLOUD_TMP/$1.json > /dev/null; then
 	err "We couldn't parse output from api.digitalocean.com :("
     fi
 
-    cat $M/$1.json | python -c "import json, sys; sys.exit(0 if json.load(sys.stdin)['droplet']['locked'] else 1)"
+    cat $MESOSCLOUD_TMP/$1.json | python -c "import json, sys; sys.exit(0 if json.load(sys.stdin)['droplet']['locked'] else 1)"
 }
 
 droplet_id() {
@@ -231,9 +236,9 @@ droplet_id() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
-    cat $M/droplets.json | python -c "import json, sys; print([d['id'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print([d['id'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_image() {
@@ -241,9 +246,9 @@ droplet_image() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
-    cat $M/droplets.json | python -c "import json, sys; print('%(distribution)s %(name)s' % [d['image'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print('%(distribution)s %(name)s' % [d['image'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_kernel() {
@@ -251,9 +256,9 @@ droplet_kernel() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
-    cat $M/droplets.json | python -c "import json, sys; print('%(version)s' % [d['kernel'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print('%(version)s' % [d['kernel'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_size() {
@@ -261,9 +266,9 @@ droplet_size() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
-    cat $M/droplets.json | python -c "import json, sys; print(['%(memory)s MB, %(vcpus)s CPU, %(disk)s GB' % d['size'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print(['%(memory)s MB, %(vcpus)s CPU, %(disk)s GB' % d['size'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_region() {
@@ -271,9 +276,9 @@ droplet_region() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
-    cat $M/droplets.json | python -c "import json, sys; print([d['region']['name'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print([d['region']['name'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_status() {
@@ -281,9 +286,9 @@ droplet_status() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
-    cat $M/droplets.json | python -c "import json, sys; print([d['status'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print([d['status'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_delete() {
@@ -306,7 +311,7 @@ droplet_address_public() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'public'][0]['ip_address'])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'public'][0]['ip_address'])"
 }
 
 droplet_address_private() {
@@ -314,7 +319,7 @@ droplet_address_private() {
 
     droplets
 
-    cat $M/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'private'][0]['ip_address'])"
+    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print([n for n in [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][0]['networks']['v4'] if n['type'] == 'private'][0]['ip_address'])"
 }
 
 droplet_ssh() {
@@ -395,7 +400,7 @@ setup_do() {
 
     #
     if [ "$1" = ssh ]; then
-	touch $M/droplets.json.cache
+	touch $MESOSCLOUD_TMP/droplets.json.cache
 
 	shift
 	name=$1
@@ -436,9 +441,8 @@ setup_do() {
     fi
 
     #
-    M=.mesoscloud
-    mkdir -p $M
-    rm -rf $M/*.json*
+    rm -rf $MESOSCLOUD_TMP
+    mkdir -p $MESOSCLOUD_TMP
 
     #
     if [ "$1" = delete ]; then
@@ -453,7 +457,7 @@ setup_do() {
 
     #
     if [ "$1" = status ]; then
-	touch $M/droplets.json.cache
+	touch $MESOSCLOUD_TMP/droplets.json.cache
 
 	mesoscloud_status
 
@@ -474,7 +478,7 @@ setup_do() {
     done
 
     #
-    touch $M/droplets.json.cache
+    touch $MESOSCLOUD_TMP/droplets.json.cache
 
     #
     say "Let's make sure we can connect."
@@ -703,7 +707,7 @@ input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sinced
 setup_elasticsearch_curator() {
     say "elasticsearch-curator"
 
-    cat > $M/job.json <<EOF
+    cat > $MESOSCLOUD_TMP/job.json <<EOF
 {
   "name": "elasticsearch-curator",
   "schedule": "R/`date -u +%Y-%m-%dT%H:%M:%SZ`/P1D",
@@ -717,7 +721,7 @@ setup_elasticsearch_curator() {
 }
 EOF
 
-    scp $M/job.json root@`droplet_address_public ${MESOSCLOUD_NAME}-1`:
+    scp $MESOSCLOUD_TMP/job.json root@`droplet_address_public ${MESOSCLOUD_NAME}-1`:
 
     droplet_ssh ${MESOSCLOUD_NAME}-1 "\
 curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_address_private ${MESOSCLOUD_NAME}-1`:4400/scheduler/iso8601\
