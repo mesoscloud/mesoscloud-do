@@ -498,7 +498,7 @@ setup_do() {
 }
 
 setup_docker() {
-    say "docker"
+    say "Let's setup the docker daemon"
 
     droplet_ssh "$MESOSCLOUD_NODES" "\
 grep -Fq \"'* hard nofile 1048576'\" /etc/security/limits.conf || echo '* hard nofile 1048576' >> /etc/security/limits.conf; \
@@ -511,7 +511,7 @@ grep -Fq \"'* soft nproc 1048576'\" /etc/security/limits.conf || echo '* soft np
 }
 
 setup_events() {
-    say "events"
+    say "Let's setup the events container"
 
     droplet_ssh "$MESOSCLOUD_NODES" "docker pull $IMAGE_EVENTS"
 
@@ -526,7 +526,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^events\\\$ || docker run -d 
 }
 
 setup_zookeeper() {
-    say "zookeeper"
+    say "Let's setup the zookeeper container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_ZOOKEEPER"
 
@@ -545,7 +545,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^zookeeper\\\$ || docker run 
 }
 
 setup_mesos_master() {
-    say "mesos-master"
+    say "Let's setup the mesos-master container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_MESOS_MASTER"
 
@@ -567,7 +567,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^master\\\$ || docker run -d 
 }
 
 setup_mesos_slave() {
-    say "mesos-slave"
+    say "Let's setup the mesos-slave container"
 
     droplet_ssh "$MESOSCLOUD_SLAVES" "docker pull $IMAGE_MESOS_SLAVE"
 
@@ -590,7 +590,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^slave\\\$ || docker run -d \
 }
 
 setup_marathon() {
-    say "marathon"
+    say "Let's setup the marathon container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_MARATHON"
 
@@ -614,7 +614,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^marathon\\\$ || docker run -
 }
 
 setup_chronos() {
-    say "chronos"
+    say "Let's setup the chronos container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_CHRONOS"
 
@@ -638,7 +638,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^chronos\\\$ || docker run -d
 }
 
 setup_haproxy_marathon() {
-    say "haproxy-marathon"
+    say "Let's setup the haproxy-marathon container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_HAPROXY_MARATHON"
 
@@ -653,7 +653,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy-marathon\\\$ || dock
 }
 
 setup_haproxy() {
-    say "haproxy"
+    say "Let's setup the haproxy container"
 
     droplet_ssh "$MESOSCLOUD_NODES" "docker pull $IMAGE_HAPROXY"
 
@@ -671,7 +671,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep ^haproxy\\\$ || docker run -d
 }
 
 setup_elaticsearch() {
-    say "elasticsearch"
+    say "Let's setup the elasticsearch container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_ELASTICSEARCH"
 
@@ -689,7 +689,7 @@ elasticsearch \
 }
 
 setup_logstash() {
-    say "logstash"
+    say "Let's setup the logstash container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_LOGSTASH"
 
@@ -705,7 +705,7 @@ input { file { path => \\\"/srv/events/containers.log-*\\\" codec => json sinced
 }
 
 setup_elasticsearch_curator() {
-    say "elasticsearch-curator"
+    say "Let's setup the elasticsearch-curator container"
 
     cat > $MESOSCLOUD_TMP/job.json <<EOF
 {
@@ -729,7 +729,7 @@ curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_addr
 }
 
 setup_s3fs() {
-    say "s3fs"
+    say "Let's setup the s3fs container"
 
     droplet_ssh "$MESOSCLOUD_NODES" "\
 which s3fs > /dev/null || {
