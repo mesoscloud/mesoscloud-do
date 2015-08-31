@@ -644,7 +644,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run
     done
 }
 
-setup_elaticsearch() {
+setup_elasticsearch() {
     say "Let's setup the elasticsearch container"
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_ELASTICSEARCH || docker pull $IMAGE_ELASTICSEARCH"
