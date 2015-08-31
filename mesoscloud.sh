@@ -30,6 +30,7 @@ MESOSCLOUD_NAME=`config MESOSCLOUD_NAME foo`
 MESOSCLOUD_NODES=`config MESOSCLOUD_NODES "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
 MESOSCLOUD_MASTERS=`config MESOSCLOUD_MASTERS "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
 MESOSCLOUD_SLAVES=`config MESOSCLOUD_SLAVES "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
+MESOSCLOUD_BUCKET=`config MESOSCLOUD_BUCKET ""`
 
 # do
 DIGITALOCEAN_ACCESS_TOKEN=`config DIGITALOCEAN_ACCESS_TOKEN ""`
@@ -49,6 +50,10 @@ IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu-14.04`
 # mesos
 MESOS_SECRET=`config MESOS_SECRET "$(password 32)"`
 
+# aws
+AWS_ACCESS_KEY_ID=`config AWS_ACCESS_KEY_ID ""`
+AWS_SECRET_ACCESS_KEY=`config AWS_SECRET_ACCESS_KEY ""`
+
 # mesoscloud.cfg.current
 config_current() {
     touch mesoscloud.cfg.current
@@ -59,6 +64,7 @@ name: $MESOSCLOUD_NAME
 nodes: $MESOSCLOUD_NODES
 masters: $MESOSCLOUD_MASTERS
 slaves: $MESOSCLOUD_SLAVES
+bucket: $MESOSCLOUD_BUCKET
 
 [digitalocean]
 access_token: $DIGITALOCEAN_ACCESS_TOKEN
@@ -77,6 +83,10 @@ logstash: $IMAGE_LOGSTASH
 
 [mesos]
 secret: $MESOS_SECRET
+
+[aws]
+access_key_id: $AWS_ACCESS_KEY_ID
+secret_access_key: $AWS_SECRET_ACCESS_KEY
 EOF
 }
 
@@ -124,6 +134,17 @@ say() {
     echo "	\\   $C^${X}__$C^$X"
     echo "	 \\  (oo)\\_______"
     echo "	    (__)\\       )\\/\\"
+    echo "		||----w |"
+    echo "		||     ||"
+}
+
+warn() {
+    echo " _______`python -c "print '_' * len('''$@''')"`_"
+    echo "< Note! $@ >"
+    echo " -------`python -c "print '-' * len('''$@''')"`-"
+    echo "	\\   $C^${X}__$C^$X"
+    echo "	 \\  (OO)\\_______   /"
+    echo "	    (__)\\       )\\/"
     echo "		||----w |"
     echo "		||     ||"
 }
@@ -389,9 +410,6 @@ setup_do() {
     fi
 
     SSH_KEY_FINGERPRINT=`ssh-keygen -f ~/.ssh/id_rsa.pub -l | awk '{print $2}'`
-
-    #
-    M=.mesoscloud
 
     #
     SIZE=${SIZE:-4gb}
@@ -731,6 +749,12 @@ curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_addr
 setup_s3fs() {
     say "Let's setup the s3fs container"
 
+    #
+    if [ "$MESOSCLOUD_BUCKET" = "" -o "$AWS_ACCESS_KEY_ID" = "" -o "$AWS_SECRET_ACCESS_KEY" = "" ]; then
+	warn "You need to set MESOSCLOUD_BUCKET, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to enable s3fs"
+	return
+    fi
+
     droplet_ssh "$MESOSCLOUD_NODES" "\
 which s3fs > /dev/null || {
 apt-get install -y automake autotools-dev g++ git libcurl4-gnutls-dev libfuse-dev libssl-dev libxml2-dev make pkg-config &&
@@ -750,7 +774,7 @@ echo $AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY > /etc/s3fs
 "
 
     droplet_ssh "$MESOSCLOUD_NODES" "\
-grep -Fq s3fs /etc/fstab || echo \"s3fs#$BUCKET /data fuse allow_other,passwd_file=/etc/s3fs 0 0\" >> /etc/fstab
+grep -Fq s3fs /etc/fstab || echo \"s3fs#$MESOSCLOUD_BUCKET /data fuse allow_other,passwd_file=/etc/s3fs 0 0\" >> /etc/fstab
 "
 
     droplet_ssh "$MESOSCLOUD_NODES" "\
