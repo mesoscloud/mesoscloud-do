@@ -4,6 +4,10 @@
 #
 # https://github.com/mesoscloud/mesoscloud-do
 
+#
+# config
+#
+
 config() {
     a=`echo $1 | cut -d_ -f1 | tr '[:upper:]' '[:lower:]'`
     b=`echo $1 | cut -d_ -f2- | tr '[:upper:]' '[:lower:]'`
@@ -15,6 +19,9 @@ MESOSCLOUD_NAME=`config MESOSCLOUD_NAME foo`
 MESOSCLOUD_NODES=`config MESOSCLOUD_NODES "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
 MESOSCLOUD_MASTERS=`config MESOSCLOUD_MASTERS "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
 MESOSCLOUD_SLAVES=`config MESOSCLOUD_SLAVES "${MESOSCLOUD_NAME}-1 ${MESOSCLOUD_NAME}-2 ${MESOSCLOUD_NAME}-3"`
+
+# do
+DIGITALOCEAN_ACCESS_TOKEN=`config DIGITALOCEAN_ACCESS_TOKEN ""`
 
 # images
 IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.1.0`
@@ -28,13 +35,19 @@ IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu-14.04`
 IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.1-ubuntu-14.04`
 IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu-14.04`
 
-# mesoscloud.cfg
-cat > mesoscloud.cfg.current <<EOF
+# mesoscloud.cfg.current
+config_current() {
+    touch mesoscloud.cfg.current
+    chmod 600 mesoscloud.cfg.current
+    cat > mesoscloud.cfg.current <<EOF
 [mesoscloud]
 name: $MESOSCLOUD_NAME
 nodes: $MESOSCLOUD_NODES
 masters: $MESOSCLOUD_MASTERS
 slaves: $MESOSCLOUD_SLAVES
+
+[digitalocean]
+access_token: $DIGITALOCEAN_ACCESS_TOKEN
 
 [image]
 events: $IMAGE_EVENTS
@@ -48,6 +61,7 @@ haproxy: $IMAGE_HAPROXY
 elasticsearch: $IMAGE_ELASTICSEARCH
 logstash: $IMAGE_LOGSTASH
 EOF
+}
 
 #
 # functions
@@ -108,7 +122,9 @@ pw() {
     python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
 }
 
-# droplet
+#
+# droplet functions
+#
 
 droplets() {
 
@@ -312,7 +328,7 @@ droplet_ssh() {
 }
 
 #
-#
+# do functions
 #
 
 mesoscloud_status() {
@@ -336,13 +352,13 @@ mesoscloud_status() {
 }
 
 #
-#
+# setup functions
 #
 
 setup_do() {
 
     # depends
-    if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
+    if [ "$DIGITALOCEAN_ACCESS_TOKEN" = "" ]; then
 	err "You need to set DIGITALOCEAN_ACCESS_TOKEN"
     fi
 
@@ -746,6 +762,8 @@ mount | grep -q \"^s3fs on /data\" || mount /data
 #
 
 main() {
+    config_current
+
     setup_do "$@"
 
     setup_docker
@@ -765,8 +783,6 @@ main() {
     mesoscloud_status
 }
 
-#
-#
-#
-
-main "$@"
+if [ -z "$LIBRARY" ]; then
+    main "$@"
+fi
