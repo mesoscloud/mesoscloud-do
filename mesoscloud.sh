@@ -21,7 +21,7 @@ config() {
 }
 
 password() {
-    # Return a random password of length $1
+    # Generate a random password of length $1
     python -c "import os, re; print(re.sub(r'[^a-zA-Z0-9]', '', os.urandom($1 * 1024))[:$1])"
 }
 
