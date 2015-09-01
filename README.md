@@ -50,6 +50,15 @@ curl -fLsS https://raw.githubusercontent.com/mesoscloud/mesoscloud-do/master/mes
 
 ### 4
 
+Take a look at `mesoscloud.cfg.current` in your current directory, this file represents the current configuration state and will be overwritten each time you run `mesoscloud.sh`.  If you want to persist configuration without relying solely on environment variables then you can create a `mesoscloud.cfg` file with content based on the values in `mesoscloud.cfg.current`.
+
+Note:
+
+- you may want to add `mesoscloud.cfg.current` to your `.gitignore` file to avoid accidentally committing secrets to your Git repo.
+- if you are going to add your `mesoscloud.cfg` to source control consider *not* storing your digitalocean access token in `mesoscloud.cfg` and requiring that it be set via an environment variable
+
+### 5
+
 At this point you may choose to point a domain at one or more of your nodes using a wildcard DNS record.
 
 https://cloud.digitalocean.com/domains
