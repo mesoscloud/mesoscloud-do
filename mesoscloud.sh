@@ -467,6 +467,10 @@ do_status() {
     echo "ssh -L 5050:\$D:5050 -L 8080:\$D:8080 -L 4400:\$D:4400 -L 9200:\$D:9200 root@\$A"
 }
 
+do_sftp() {
+    exec sftp -o BatchMode=yes root@`droplet_address_public $2`
+}
+
 #
 # setup functions
 #
