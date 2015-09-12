@@ -34,7 +34,7 @@ DIGITALOCEAN_REGION=`config DIGITALOCEAN_REGION nyc3`
 DIGITALOCEAN_SIZE=`config DIGITALOCEAN_SIZE 4gb`
 
 # images
-IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.2.0`
+IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.2.1`
 IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.6-ubuntu-14.04`
 IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.23.0-ubuntu-14.04`
 IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.23.0-ubuntu-14.04`
