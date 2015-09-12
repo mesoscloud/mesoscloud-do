@@ -65,6 +65,31 @@ https://cloud.digitalocean.com/domains
 
 ![docs/screen-1.png](docs/screen-1.png)
 
+## Commands
+
+### sftp
+
+sftp can be used to securely transfer files to and from your mesoscloud.
+
+e.g.
+
+```
+$ echo put data | ./mesoscloud.sh sftp foo-1
+Connected to 104.131.34.41.
+sftp> put data
+Uploading data to /root/data
+data                                                        100% 1024KB 256.0KB/s   00:04
+```
+
+```
+$ ./mesoscloud.sh sftp foo-1
+Connected to 104.131.34.41.
+sftp> get data
+Fetching /root/data to data
+/root/data                                                  100% 1024KB 128.0KB/s   00:08
+sftp>
+```
+
 ## Tutorials
 
 ### Using mesoscloud-do to create a mesoscloud on DigitalOcean
