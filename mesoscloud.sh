@@ -520,7 +520,7 @@ setup_events() {
     for name in $MESOSCLOUD_NODES; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^events\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_EVENTS * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_EVENTS * 200000)\"` \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v /srv/events:/srv/events \
 --name=events --restart=always $IMAGE_EVENTS\
@@ -536,7 +536,7 @@ setup_zookeeper() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^zookeeper\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_ZOOKEEPER * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_ZOOKEEPER * 200000)\"` \
 -e MYID=`echo $name | awk -F- '{print $NF}'` \
 -e SERVERS=`droplet_address_private ${MESOSCLOUD_NAME}-1`,`droplet_address_private ${MESOSCLOUD_NAME}-2`,`droplet_address_private ${MESOSCLOUD_NAME}-3` \
 --name=zookeeper --net=host --restart=always $IMAGE_ZOOKEEPER\
@@ -556,7 +556,7 @@ setup_mesos_master() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^master\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_MESOS_MASTER * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MESOS_MASTER * 200000)\"` \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_QUORUM=2 \
@@ -579,7 +579,7 @@ setup_mesos_slave() {
     for name in $MESOSCLOUD_SLAVES; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^slave\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_MESOS_SLAVE * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MESOS_SLAVE * 200000)\"` \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
 -e MESOS_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
@@ -603,7 +603,7 @@ setup_marathon() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_MARATHON * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MARATHON * 200000)\"` \
 -e MARATHON_HOSTNAME=`droplet_address_private $name` \
 -e MARATHON_HTTPS_ADDRESS=`droplet_address_private $name` \
 -e MARATHON_HTTP_ADDRESS=`droplet_address_private $name` \
@@ -628,7 +628,7 @@ setup_chronos() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_CHRONOS * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_CHRONOS * 200000)\"` \
 -e CHRONOS_HOSTNAME=`droplet_address_private $name` \
 -e CHRONOS_HTTP_ADDRESS=`droplet_address_private $name` \
 -e CHRONOS_HTTP_PORT=4400 \
@@ -653,7 +653,7 @@ setup_haproxy_marathon() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy-marathon\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_HAPROXY_MARATHON * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_HAPROXY_MARATHON * 200000)\"` \
 -e MARATHON=`droplet_address_private $name`:8080 \
 -e ZK=`droplet_address_private $name`:2181 \
 --name=haproxy-marathon --net=host --restart=always $IMAGE_HAPROXY_MARATHON\
@@ -669,7 +669,7 @@ setup_haproxy() {
     for name in $MESOSCLOUD_NODES; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_HAPROXY * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_HAPROXY * 200000)\"` \
 -e ZK=`droplet_address_private $name`:2181 \
 --name=haproxy --net=host --privileged --restart=always $IMAGE_HAPROXY\
 "
@@ -688,7 +688,7 @@ setup_elasticsearch() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^elasticsearch\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_ELASTICSEARCH * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_ELASTICSEARCH * 200000)\"` \
 -v /srv/elasticsearch/data:/opt/elasticsearch/data \
 -v /srv/elasticsearch/logs:/opt/elasticsearch/logs \
 --name=elasticsearch --net=host --restart=always $IMAGE_ELASTICSEARCH \
@@ -707,7 +707,7 @@ setup_logstash() {
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^logstash\\\$ || docker run -d \
---cpu-period=200000 ---cpu-quota=`python -c \"print int($CPU_LOGSTASH * 200000)\"` \
+--cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_LOGSTASH * 200000)\"` \
 -v /srv/events:/srv/events \
 -v /srv/logstash:/srv/logstash \
 --name=logstash --net=host --restart=always $IMAGE_LOGSTASH logstash -e \"\
