@@ -44,6 +44,7 @@ IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-maratho
 IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu-14.04`
 IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.1-ubuntu-14.04`
 IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu-14.04`
+IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.1`
 
 # cpu
 CPU_EVENTS=`config CPU_EVENTS 1.0`
@@ -56,6 +57,7 @@ CPU_HAPROXY_MARATHON=`config CPU_HAPROXY_MARATHON 1.0`
 CPU_HAPROXY=`config CPU_HAPROXY 1.0`
 CPU_ELASTICSEARCH=`config CPU_ELASTICSEARCH 1.0`
 CPU_LOGSTASH=`config CPU_LOGSTASH 1.0`
+CPU_KIBANA=`config CPU_KIBANA 1.0`
 
 # mesos
 MESOS_SECRET=`config MESOS_SECRET "$(password 32)"`
@@ -87,6 +89,7 @@ haproxy_marathon: $IMAGE_HAPROXY_MARATHON
 haproxy: $IMAGE_HAPROXY
 elasticsearch: $IMAGE_ELASTICSEARCH
 logstash: $IMAGE_LOGSTASH
+kibana: $IMAGE_KIBANA
 
 [cpu]
 events: $CPU_EVENTS
@@ -99,6 +102,7 @@ haproxy_marathon: $CPU_HAPROXY_MARATHON
 haproxy: $CPU_HAPROXY
 elasticsearch: $CPU_ELASTICSEARCH
 logstash: $CPU_LOGSTASH
+kibana: $CPU_KIBANA
 
 [mesos]
 secret: $MESOS_SECRET
@@ -740,6 +744,52 @@ curl -L -H \"Content-Type: application/json\" -X POST -d @job.json `droplet_addr
 "
 }
 
+setup_kibana() {
+    say "Let's setup the kibana app"
+
+    cat > $MESOSCLOUD_TMP/app.json <<EOF
+{
+  "id": "kibana",
+  "cpus": $CPU_KIBANA,
+  "mem": 256,
+  "instances": 1,
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "$IMAGE_KIBANA",
+      "forcePullImage": true,
+      "network": "BRIDGE",
+      "portMappings": [
+        {
+          "containerPort": 5601,
+          "servicePort": 5601
+        }
+      ],
+      "parameters": [
+        { "key": "env", "value": "ELASTICSEARCH_HOST=gateway" }
+      ]
+    }
+  },
+  "healthChecks": [
+    {
+      "portIndex": 0,
+      "protocol": "TCP",
+      "gracePeriodSeconds": 60,
+      "intervalSeconds": 30,
+      "timeoutSeconds": 30,
+      "maxConsecutiveFailures": 3
+    }
+  ]
+}
+EOF
+
+    scp $MESOSCLOUD_TMP/app.json root@`droplet_address_public ${MESOSCLOUD_NAME}-1`:
+
+    droplet_ssh ${MESOSCLOUD_NAME}-1 "\
+curl -L -H \"Content-Type: application/json\" -X POST -d @app.json `droplet_address_private ${MESOSCLOUD_NAME}-1`:8080/v2/apps\
+"
+}
+
 #
 # main
 #
@@ -768,6 +818,7 @@ main() {
     setup_elasticsearch
     setup_logstash
     setup_elasticsearch_curator
+    setup_kibana
 
     do_status
 }
