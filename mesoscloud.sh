@@ -515,7 +515,7 @@ grep -Fq \"'* soft nproc 1048576'\" /etc/security/limits.conf || echo '* soft np
 setup_events() {
     say "Let's setup the events container"
 
-    droplet_ssh "$MESOSCLOUD_NODES" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_EVENTS || docker pull $IMAGE_EVENTS"
+    droplet_ssh "$MESOSCLOUD_NODES" "docker pull $IMAGE_EVENTS"
 
     for name in $MESOSCLOUD_NODES; do
 	droplet_ssh $name "\
@@ -531,7 +531,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^events\\\$ || docker run 
 setup_zookeeper() {
     say "Let's setup the zookeeper container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_ZOOKEEPER || docker pull $IMAGE_ZOOKEEPER"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_ZOOKEEPER"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
@@ -551,7 +551,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^zookeeper\\\$ || docker r
 setup_mesos_master() {
     say "Let's setup the mesos-master container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_MESOS_MASTER || docker pull $IMAGE_MESOS_MASTER"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_MESOS_MASTER"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
@@ -574,7 +574,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^master\\\$ || docker run 
 setup_mesos_slave() {
     say "Let's setup the mesos-slave container"
 
-    droplet_ssh "$MESOSCLOUD_SLAVES" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_MESOS_SLAVE || docker pull $IMAGE_MESOS_SLAVE"
+    droplet_ssh "$MESOSCLOUD_SLAVES" "docker pull $IMAGE_MESOS_SLAVE"
 
     for name in $MESOSCLOUD_SLAVES; do
 	droplet_ssh $name "\
@@ -598,7 +598,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^slave\\\$ || docker run -
 setup_marathon() {
     say "Let's setup the marathon container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_MARATHON || docker pull $IMAGE_MARATHON"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_MARATHON"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
@@ -623,7 +623,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker ru
 setup_chronos() {
     say "Let's setup the chronos container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_CHRONOS || docker pull $IMAGE_CHRONOS"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_CHRONOS"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
@@ -648,7 +648,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run
 setup_haproxy_marathon() {
     say "Let's setup the haproxy-marathon container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_HAPROXY_MARATHON || docker pull $IMAGE_HAPROXY_MARATHON"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_HAPROXY_MARATHON"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
@@ -664,7 +664,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy-marathon\\\$ || d
 setup_haproxy() {
     say "Let's setup the haproxy container"
 
-    droplet_ssh "$MESOSCLOUD_NODES" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_HAPROXY || docker pull $IMAGE_HAPROXY"
+    droplet_ssh "$MESOSCLOUD_NODES" "docker pull $IMAGE_HAPROXY"
 
     for name in $MESOSCLOUD_NODES; do
 	droplet_ssh $name "\
@@ -683,7 +683,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run
 setup_elasticsearch() {
     say "Let's setup the elasticsearch container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_ELASTICSEARCH || docker pull $IMAGE_ELASTICSEARCH"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_ELASTICSEARCH"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
@@ -702,7 +702,7 @@ elasticsearch \
 setup_logstash() {
     say "Let's setup the logstash container"
 
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker images | sed 1d | awk \"{print \\\$1 \\\":\\\" \\\$2}\" | grep -Fq $IMAGE_LOGSTASH || docker pull $IMAGE_LOGSTASH"
+    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_LOGSTASH"
 
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
