@@ -818,7 +818,7 @@ main() {
     setup_elasticsearch
     setup_logstash
     setup_elasticsearch_curator
-    setup_kibana
+    #setup_kibana
 
     do_status
 }
