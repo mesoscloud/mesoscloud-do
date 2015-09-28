@@ -490,9 +490,9 @@ do_status() {
     info "SSH example:"
     echo ""
 
-    echo "A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_public ${MESOSCLOUD_NAME}-2`; C=`droplet_address_public ${MESOSCLOUD_NAME}-3`; D=`droplet_address_private ${MESOSCLOUD_NAME}-1`; E=`droplet_address_private ${MESOSCLOUD_NAME}-2`; F=`droplet_address_private ${MESOSCLOUD_NAME}-3`"
+    echo "A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_private ${MESOSCLOUD_NAME}-1`"
 
-    echo "ssh -L 5050:\$D:5050 -L 8080:\$D:8080 -L 4400:\$D:4400 -L 9200:\$D:9200 root@\$A"
+    echo "ssh -L 5050:\$B:5050 -L 8080:\$B:8080 -L 4400:\$B:4400 -L 9200:\$B:9200 root@\$A"
 }
 
 do_sftp() {
@@ -537,12 +537,21 @@ setup_zookeeper() {
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_ZOOKEEPER"
 
+    SERVERS=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$SERVERS" ]; then
+	    SERVERS="`droplet_address_private $name`"
+	else
+	    SERVERS="$SERVERS,`droplet_address_private $name`"
+	fi
+    done
+
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^zookeeper\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_ZOOKEEPER * 200000)\"` \
 -e MYID=`echo $name | awk -F- '{print $NF}'` \
--e SERVERS=`droplet_address_private ${MESOSCLOUD_NAME}-1`,`droplet_address_private ${MESOSCLOUD_NAME}-2`,`droplet_address_private ${MESOSCLOUD_NAME}-3` \
+-e SERVERS=$SERVERS \
 --name=zookeeper --net=host --restart=always $IMAGE_ZOOKEEPER\
 "
 	while true; do
@@ -557,14 +566,39 @@ setup_mesos_master() {
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_MESOS_MASTER"
 
+    MESOS_ZK=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$MESOS_ZK" ]; then
+	    MESOS_ZK="zk://`droplet_address_private $name`:2181"
+	else
+	    MESOS_ZK="$MESOS_ZK,`droplet_address_private $name`:2181"
+	fi
+    done
+    MESOS_ZK="$MESOS_ZK/mesos"
+
+    # http://mesos.apache.org/documentation/latest/configuration/
+
+    # $ for i in 1 2 3 4 5 6 7 8 9; do echo -n "nodes $i, quorum "; python -c "print max((len(('foo-1 ' * $i).rstrip().split()) / 2) + 1, 1)"; done
+    # nodes 1, quorum 1
+    # nodes 2, quorum 2
+    # nodes 3, quorum 2
+    # nodes 4, quorum 3
+    # nodes 5, quorum 3
+    # nodes 6, quorum 4
+    # nodes 7, quorum 4
+    # nodes 8, quorum 5
+    # nodes 9, quorum 5
+
+    MESOS_QUORUM=`python -c "print max((len('$MESOSCLOUD_MASTERS'.split()) / 2) + 1, 1)"`
+
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^master\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MESOS_MASTER * 200000)\"` \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
--e MESOS_QUORUM=2 \
--e MESOS_ZK=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
+-e MESOS_QUORUM=$MESOS_QUORUM \
+-e MESOS_ZK=$MESOS_ZK \
 -e SECRET=$MESOS_SECRET \
 --name=master --net=host --restart=always $IMAGE_MESOS_MASTER\
 "
@@ -580,13 +614,23 @@ setup_mesos_slave() {
 
     droplet_ssh "$MESOSCLOUD_SLAVES" "docker pull $IMAGE_MESOS_SLAVE"
 
+    MESOS_MASTER=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$MESOS_MASTER" ]; then
+	    MESOS_MASTER="zk://`droplet_address_private $name`:2181"
+	else
+	    MESOS_MASTER="$MESOS_MASTER,`droplet_address_private $name`:2181"
+	fi
+    done
+    MESOS_MASTER="$MESOS_MASTER/mesos"
+
     for name in $MESOSCLOUD_SLAVES; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^slave\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MESOS_SLAVE * 200000)\"` \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
 -e MESOS_IP=`droplet_address_private $name` \
--e MESOS_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
+-e MESOS_MASTER=$MESOS_MASTER \
 -e SECRET=$MESOS_SECRET \
 -v /sys/fs/cgroup:/sys/fs/cgroup \
 -v /var/run/docker.sock:/var/run/docker.sock \
@@ -604,6 +648,26 @@ setup_marathon() {
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_MARATHON"
 
+    MARATHON_MASTER=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$MARATHON_MASTER" ]; then
+	    MARATHON_MASTER="zk://`droplet_address_private $name`:2181"
+	else
+	    MARATHON_MASTER="$MARATHON_MASTER,`droplet_address_private $name`:2181"
+	fi
+    done
+    MARATHON_MASTER="$MARATHON_MASTER/mesos"
+
+    MARATHON_ZK=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$MARATHON_ZK" ]; then
+	    MARATHON_ZK="zk://`droplet_address_private $name`:2181"
+	else
+	    MARATHON_ZK="$MARATHON_ZK,`droplet_address_private $name`:2181"
+	fi
+    done
+    MARATHON_ZK="$MARATHON_ZK/marathon"
+
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker run -d \
@@ -611,8 +675,8 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker ru
 -e MARATHON_HOSTNAME=`droplet_address_private $name` \
 -e MARATHON_HTTPS_ADDRESS=`droplet_address_private $name` \
 -e MARATHON_HTTP_ADDRESS=`droplet_address_private $name` \
--e MARATHON_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
--e MARATHON_ZK=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/marathon \
+-e MARATHON_MASTER=$MARATHON_MASTER \
+-e MARATHON_ZK=$MARATHON_ZK \
 -e LIBPROCESS_IP=`droplet_address_private $name` \
 -e SECRET=$MESOS_SECRET \
 --name=marathon --net=host --restart=always $IMAGE_MARATHON\
@@ -629,6 +693,25 @@ setup_chronos() {
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_CHRONOS"
 
+    CHRONOS_MASTER=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$CHRONOS_MASTER" ]; then
+	    CHRONOS_MASTER="zk://`droplet_address_private $name`:2181"
+	else
+	    CHRONOS_MASTER="$CHRONOS_MASTER,`droplet_address_private $name`:2181"
+	fi
+    done
+    CHRONOS_MASTER="$CHRONOS_MASTER/mesos"
+
+    CHRONOS_ZK_HOSTS=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$CHRONOS_ZK_HOSTS" ]; then
+	    CHRONOS_ZK_HOSTS="`droplet_address_private $name`:2181"
+	else
+	    CHRONOS_ZK_HOSTS="$CHRONOS_ZK_HOSTS,`droplet_address_private $name`:2181"
+	fi
+    done
+
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run -d \
@@ -636,8 +719,8 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run
 -e CHRONOS_HOSTNAME=`droplet_address_private $name` \
 -e CHRONOS_HTTP_ADDRESS=`droplet_address_private $name` \
 -e CHRONOS_HTTP_PORT=4400 \
--e CHRONOS_MASTER=zk://`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181/mesos \
--e CHRONOS_ZK_HOSTS=`droplet_address_private ${MESOSCLOUD_NAME}-1`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-2`:2181,`droplet_address_private ${MESOSCLOUD_NAME}-3`:2181 \
+-e CHRONOS_MASTER=$CHRONOS_MASTER \
+-e CHRONOS_ZK_HOSTS=$CHRONOS_ZK_HOSTS \
 -e LIBPROCESS_IP=`droplet_address_private $name` \
 -e SECRET=$MESOS_SECRET \
 --name=chronos --net=host --restart=always $IMAGE_CHRONOS\
@@ -689,6 +772,15 @@ setup_elasticsearch() {
 
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_ELASTICSEARCH"
 
+    HOSTS=""
+    for name in $MESOSCLOUD_MASTERS; do
+	if [ -z "$HOSTS" ]; then
+	    HOSTS="`droplet_address_private $name`"
+	else
+	    HOSTS="$HOSTS,`droplet_address_private $name`"
+	fi
+    done
+
     for name in $MESOSCLOUD_MASTERS; do
 	droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^elasticsearch\\\$ || docker run -d \
@@ -698,7 +790,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^elasticsearch\\\$ || dock
 --name=elasticsearch --net=host --restart=always $IMAGE_ELASTICSEARCH \
 elasticsearch \
 -Des.discovery.zen.ping.multicast.enabled=false \
--Des.discovery.zen.ping.unicast.hosts=`droplet_address_private ${MESOSCLOUD_NAME}-1`,`droplet_address_private ${MESOSCLOUD_NAME}-2`,`droplet_address_private ${MESOSCLOUD_NAME}-3`\
+-Des.discovery.zen.ping.unicast.hosts=$HOSTS\
 "
     done
 }
