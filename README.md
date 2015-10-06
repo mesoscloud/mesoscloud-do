@@ -67,6 +67,70 @@ https://cloud.digitalocean.com/domains
 
 ## Commands
 
+### app
+
+e.g.
+
+```
+$ ./mesoscloud.sh app < apps/foo.json
+```
+
+### job
+
+e.g.
+
+```
+$ ./mesoscloud.sh job < jobs/foo.json
+```
+
+### rsync
+
+e.g.
+
+```
+$ ./mesoscloud.sh rsync -av data foo-1:
+building file list ... done
+data/
+data/file1
+data/file2
+data/file3
+
+sent 3146368 bytes  received 92 bytes  51161.95 bytes/sec
+total size is 3145728  speedup is 1.00
+```
+
+```
+$ ./mesoscloud.sh rsync -av data foo-1:
+building file list ... done
+
+sent 124 bytes  received 20 bytes  41.14 bytes/sec
+total size is 3145728  speedup is 21845.33
+```
+
+```
+$ rm -rf data
+```
+
+```
+$ ./mesoscloud.sh rsync -av foo-1:data .
+receiving file list ... done
+data/
+data/file1
+data/file2
+data/file3
+
+sent 88 bytes  received 3146742 bytes  273637.39 bytes/sec
+total size is 3145728  speedup is 1.00
+```
+
+```
+$ ./mesoscloud.sh rsync -av foo-1:data .
+receiving file list ... done
+
+sent 16 bytes  received 118 bytes  38.29 bytes/sec
+total size is 3145728  speedup is 23475.58
+```
+
 ### sftp
 
 sftp can be used to securely transfer files to and from your mesoscloud.
