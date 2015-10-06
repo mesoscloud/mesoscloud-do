@@ -495,6 +495,39 @@ do_status() {
     echo "ssh -L 5050:\$B:5050 -L 8080:\$B:8080 -L 4400:\$B:4400 -L 9200:\$B:9200 root@\$A"
 }
 
+do_connect() {
+    A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_private ${MESOSCLOUD_NAME}-1`
+    ssh -N -o ServerAliveInterval=300 -L 5050:$B:5050 -L 8080:$B:8080 -L 4400:$B:4400 -L 9200:$B:9200 root@$A sleep 300 &
+    P=$!
+
+    while true; do
+	nc -z localhost 8080 && break
+	sleep 0.1
+    done
+    open http://localhost:8080
+
+    while true; do
+	nc -z localhost 5050 && break
+	sleep 0.1
+    done
+    open http://localhost:5050
+
+    while true; do
+	nc -z localhost 4400 && break
+	sleep 0.1
+    done
+    open http://localhost:4400
+
+    echo "terminate ssh connection [yes]? "
+    read resp
+
+    if [ "$resp" = no ]; then
+	return
+    fi
+
+    kill $P
+}
+
 do_sftp() {
     exec sftp -o BatchMode=yes root@`droplet_address_public $2`
 }
