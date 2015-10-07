@@ -35,16 +35,16 @@ DIGITALOCEAN_SIZE=`config DIGITALOCEAN_SIZE 4gb`
 
 # images
 IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.2.2`
-IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.6-ubuntu-14.04`
-IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.23.0-ubuntu-14.04`
-IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.23.0-ubuntu-14.04`
-IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:0.10.1-ubuntu-14.04`
-IMAGE_CHRONOS=`config IMAGE_CHRONOS mesoscloud/chronos:2.4.0-ubuntu-14.04`
-IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-marathon:0.2.0`
-IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu-14.04`
-IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.1-ubuntu-14.04`
-IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu-14.04`
-IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.1`
+IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.6-ubuntu`
+IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.24.1-ubuntu`
+IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.24.1-ubuntu`
+IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:0.11.0-ubuntu`
+IMAGE_CHRONOS=`config IMAGE_CHRONOS mesoscloud/chronos:2.4.0-ubuntu`
+IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-marathon:0.2.1`
+IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu`
+IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.2-ubuntu`
+IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu`
+IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.2-ubuntu`
 
 # cpu
 CPU_EVENTS=`config CPU_EVENTS 1.0`
@@ -495,8 +495,64 @@ do_status() {
     echo "ssh -L 5050:\$B:5050 -L 8080:\$B:8080 -L 4400:\$B:4400 -L 9200:\$B:9200 root@\$A"
 }
 
+do_connect() {
+    A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_private ${MESOSCLOUD_NAME}-1`
+    ssh -N -o ServerAliveInterval=300 -L 5050:$B:5050 -L 8080:$B:8080 -L 4400:$B:4400 -L 9200:$B:9200 root@$A sleep 300 &
+    P=$!
+
+    while true; do
+	nc -z localhost 8080 && break
+	sleep 0.1
+    done
+    open http://localhost:8080
+
+    while true; do
+	nc -z localhost 5050 && break
+	sleep 0.1
+    done
+    open http://localhost:5050
+
+    while true; do
+	nc -z localhost 4400 && break
+	sleep 0.1
+    done
+    open http://localhost:4400
+
+    echo "terminate ssh connection [yes]? "
+    read resp
+
+    if [ "$resp" = no ]; then
+	return
+    fi
+
+    kill $P
+}
+
 do_sftp() {
     exec sftp -o BatchMode=yes root@`droplet_address_public $2`
+}
+
+do_rsync() {
+    name=`python -c "import re, sys; print re.search(r'(?!.*@)(.*?):(.*)', sys.argv[-1] if ':' in sys.argv[-1] else sys.argv[-2]).group(1)" "$@"`
+    path=`python -c "import re, sys; print re.search(r'(?!.*@)(.*?):(.*)', sys.argv[-1] if ':' in sys.argv[-1] else sys.argv[-2]).group(2)" "$@"`
+
+    if [ $? -ne 0 ]; then
+	exit 1
+    fi
+
+    if python -c "import re, sys; sys.exit(0 if re.search(r'(?!.*@)(.*?):(.*)', sys.argv[-1]) else 1)" "$@"; then
+	exec python -c "import subprocess, sys; sys.exit(subprocess.Popen(['rsync', '-e', 'ssh -o BatchMode=yes'] + sys.argv[2:-1] + ['root@`droplet_address_public $name`:$path']).wait())" "$@"
+    else
+	exec python -c "import subprocess, sys; sys.exit(subprocess.Popen(['rsync', '-e', 'ssh -o BatchMode=yes'] + sys.argv[2:-2] + ['root@`droplet_address_public $name`:$path'] + sys.argv[-1:]).wait())" "$@"
+    fi
+}
+
+do_app() {
+    exec ssh -o BatchMode=yes root@`droplet_address_public ${MESOSCLOUD_NAME}-1` "curl -fLsS -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' `droplet_address_private ${MESOSCLOUD_NAME}-1`:8080/v2/apps -d @-"
+}
+
+do_job() {
+    exec ssh -o BatchMode=yes root@`droplet_address_public ${MESOSCLOUD_NAME}-1` "curl -fLsS -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' `droplet_address_private ${MESOSCLOUD_NAME}-1`:4400/scheduler/iso8601 -d @-"
 }
 
 #
