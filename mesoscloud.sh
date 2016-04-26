@@ -381,7 +381,9 @@ do_setup() {
         err "You need an ssh key (missing ~/.ssh/id_rsa.pub)"
     fi
 
-    SSH_KEY_FINGERPRINT=`ssh-keygen -f ~/.ssh/id_rsa.pub -l | awk '{print $2}'`
+    if [ -z "$SSH_KEY_FINGERPRINT" ]; then
+        SSH_KEY_FINGERPRINT=`ssh-keygen -E md5 -f ~/.ssh/id_rsa.pub -l | awk '{print $2}' | sed 's/^MD5://'`
+    fi
 
     #
     mkdir -p $MESOSCLOUD_TMP
