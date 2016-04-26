@@ -150,9 +150,9 @@ say() {
     printf " -`python -c "print '-' * len('''$@''')"`-\n"
     printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
     printf "     \\  (oo)\\_______\n"
-    printf "	(__)\\       )\\/\\"; echo
-    printf "        ||----w |\n"
-    printf "        ||     ||\n"
+    printf "        (__)\\       )\\/\\"; echo
+    printf "            ||----w |\n"
+    printf "            ||     ||\n"
 }
 
 err() {
@@ -161,9 +161,9 @@ err() {
     printf " -`python -c "print '-' * len('''$@''')"`-\n"
     printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
     printf "     \\  (xx)\\_______\n"
-    printf "	(__)\\       )\\/\\"; echo
-    printf "      U ||----w |\n"
-    printf "        ||     ||\n"
+    printf "        (__)\\       )\\/\\"; echo
+    printf "          U ||----w |\n"
+    printf "            ||     ||\n"
     exit 1
 }
 
