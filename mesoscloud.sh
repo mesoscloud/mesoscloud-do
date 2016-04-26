@@ -35,10 +35,10 @@ DIGITALOCEAN_SIZE=`config DIGITALOCEAN_SIZE 4gb`
 
 # images
 IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.2.2`
-IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.6-ubuntu`
-IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.24.1-ubuntu`
-IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.24.1-ubuntu`
-IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:0.11.0-ubuntu`
+IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.8-ubuntu`
+IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.28.1-ubuntu`
+IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.28.1-ubuntu`
+IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:1.1.1-ubuntu`
 IMAGE_CHRONOS=`config IMAGE_CHRONOS mesoscloud/chronos:2.4.0-ubuntu`
 IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-marathon:0.2.1`
 IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu`
@@ -957,18 +957,18 @@ main() {
     do_create "$@"
 
     setup_docker
-    setup_events
+    #setup_events
     setup_zookeeper
     setup_mesos_master
     setup_mesos_slave
     setup_marathon
     setup_chronos
-    setup_haproxy_marathon
-    setup_haproxy
-    setup_elasticsearch
-    setup_logstash
-    setup_elasticsearch_curator
-    #setup_kibana
+    #setup_haproxy_marathon
+    #setup_haproxy
+    #setup_elasticsearch
+    #setup_logstash
+    #setup_elasticsearch_curator
+    ##setup_kibana
 
     do_status
 }
