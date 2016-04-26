@@ -133,37 +133,37 @@ info() {
     touch $LOCK
 
     if [ -n "$2" ]; then
-        echo "$WHITE$2 $1$RESET" >&2
+        printf "$WHITE$2 $1$RESET\n" >&2
     else
-        echo "$WHITE$1$RESET" >&2
+        printf "$WHITE$1$RESET\n" >&2
     fi
 
     if [ -n "$3" ]; then
-        echo "$CYAN$3$RESET" >&2
+        printf "$CYAN$3$RESET\n" >&2
     fi
     rm -f $LOCK
 }
 
 say() {
-    echo " _`python -c "print '_' * len('''$@''')"`_"
-    echo "< $@ >"
-    echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $CYAN^${RESET}__$CYAN^$RESET"
-    echo "       \\  (oo)\\_______"
-    echo "          (__)\\       )\\/\\"
-    echo "		||----w |"
-    echo "		||     ||"
+    printf " _`python -c "print '_' * len('''$@''')"`_\n"
+    printf "< $@ >\n"
+    printf " -`python -c "print '-' * len('''$@''')"`-\n"
+    printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
+    printf "     \\  (oo)\\_______\n"
+    printf "	(__)\\       )\\/\\"; echo
+    printf "        ||----w |\n"
+    printf "        ||     ||\n"
 }
 
 err() {
-    echo " _`python -c "print '_' * len('''$@''')"`_"
-    echo "< $@ >"
-    echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $CYAN^${RESET}__$CYAN^$RESET"
-    echo "       \\  (xx)\\_______"
-    echo "          (__)\\       )\\/\\"
-    echo "            U ||----w |"
-    echo "		||     ||"
+    printf " _`python -c "print '_' * len('''$@''')"`_\n"
+    printf "< $@ >\n"
+    printf " -`python -c "print '-' * len('''$@''')"`-\n"
+    printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
+    printf "     \\  (xx)\\_______\n"
+    printf "	(__)\\       )\\/\\"; echo
+    printf "      U ||----w |\n"
+    printf "        ||     ||\n"
     exit 1
 }
 
