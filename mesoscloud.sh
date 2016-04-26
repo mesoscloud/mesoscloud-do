@@ -8,8 +8,8 @@ config() {
     # from environment
     eval v=\$$1
     if [ -n "$v" ]; then
-	echo "$v"
-	return
+        echo "$v"
+        return
     fi
     a=`echo $1 | cut -d_ -f1 | tr '[:upper:]' '[:lower:]'`
     b=`echo $1 | cut -d_ -f2- | tr '[:upper:]' '[:lower:]'`
@@ -35,10 +35,10 @@ DIGITALOCEAN_SIZE=`config DIGITALOCEAN_SIZE 4gb`
 
 # images
 IMAGE_EVENTS=`config IMAGE_EVENTS mesoscloud/events:0.2.2`
-IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.6-ubuntu`
-IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.24.1-ubuntu`
-IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.24.1-ubuntu`
-IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:0.11.0-ubuntu`
+IMAGE_ZOOKEEPER=`config IMAGE_ZOOKEEPER mesoscloud/zookeeper:3.4.8-ubuntu`
+IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.28.1-ubuntu`
+IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.28.1-ubuntu`
+IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:1.1.1-ubuntu`
 IMAGE_CHRONOS=`config IMAGE_CHRONOS mesoscloud/chronos:2.4.0-ubuntu`
 IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-marathon:0.2.1`
 IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu`
@@ -128,42 +128,42 @@ LOCK=$MESOSCLOUD_TMP/.lock
 info() {
     # best effort only
     while [ -e $LOCK ]; do
-	sleep 0.05
+        sleep 0.05
     done
     touch $LOCK
 
     if [ -n "$2" ]; then
-	echo "$WHITE$2 $1$RESET" >&2
+        printf "$WHITE$2 $1$RESET\n" >&2
     else
-	echo "$WHITE$1$RESET" >&2
+        printf "$WHITE$1$RESET\n" >&2
     fi
 
     if [ -n "$3" ]; then
-	echo "$CYAN$3$RESET" >&2
+        printf "$CYAN$3$RESET\n" >&2
     fi
     rm -f $LOCK
 }
 
 say() {
-    echo " _`python -c "print '_' * len('''$@''')"`_"
-    echo "< $@ >"
-    echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $CYAN^${RESET}__$CYAN^$RESET"
-    echo "	 \\  (oo)\\_______"
-    echo "	    (__)\\       )\\/\\"
-    echo "		||----w |"
-    echo "		||     ||"
+    printf " _`python -c "print '_' * len('''$@''')"`_\n"
+    printf "< $@ >\n"
+    printf " -`python -c "print '-' * len('''$@''')"`-\n"
+    printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
+    printf "     \\  (oo)\\_______\n"
+    printf "        (__)\\       )\\/\\"; echo
+    printf "            ||----w |\n"
+    printf "            ||     ||\n"
 }
 
 err() {
-    echo " _`python -c "print '_' * len('''$@''')"`_"
-    echo "< $@ >"
-    echo " -`python -c "print '-' * len('''$@''')"`-"
-    echo "	\\   $CYAN^${RESET}__$CYAN^$RESET"
-    echo "	 \\  (xx)\\_______"
-    echo "	    (__)\\       )\\/\\"
-    echo "	      U ||----w |"
-    echo "		||     ||"
+    printf " _`python -c "print '_' * len('''$@''')"`_\n"
+    printf "< $@ >\n"
+    printf " -`python -c "print '-' * len('''$@''')"`-\n"
+    printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
+    printf "     \\  (xx)\\_______\n"
+    printf "        (__)\\       )\\/\\"; echo
+    printf "          U ||----w |\n"
+    printf "            ||     ||\n"
     exit 1
 }
 
@@ -173,17 +173,17 @@ err() {
 
 droplets() {
     if [ -e $MESOSCLOUD_TMP/droplets.json -a -e $MESOSCLOUD_TMP/droplets.json.cache ]; then
-	return
+        return
     fi
 
     curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets > $MESOSCLOUD_TMP/droplets.json
 
     if [ $? -ne 0 ]; then
-	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
+        err "We couldn't fetch a list of droplets from api.digitalocean.com :("
     fi
 
     if ! python -m json.tool $MESOSCLOUD_TMP/droplets.json > /dev/null; then
-	err "We couldn't parse output from api.digitalocean.com  :("
+        err "We couldn't parse output from api.digitalocean.com  :("
     fi
 }
 
@@ -227,11 +227,11 @@ droplet_create() {
     curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" -d "{\"name\":\"$1\",\"region\":\"$DIGITALOCEAN_REGION\",\"size\":\"$DIGITALOCEAN_SIZE\",\"image\":\"ubuntu-14-04-x64\",\"ssh_keys\":[\"$SSH_KEY_FINGERPRINT\"],\"backups\":false,\"ipv6\":false,\"user_data\":null,\"private_networking\":true}" https://api.digitalocean.com/v2/droplets > $MESOSCLOUD_TMP/droplets.json
 
     if [ $? -ne 0 ]; then
-	err "We couldn't fetch a list of droplets from api.digitalocean.com :("
+        err "We couldn't fetch a list of droplets from api.digitalocean.com :("
     fi
 
     if ! python -m json.tool $MESOSCLOUD_TMP/droplets.json > /dev/null; then
-	err "We couldn't parse output from api.digitalocean.com :("
+        err "We couldn't parse output from api.digitalocean.com :("
     fi
 }
 
@@ -245,11 +245,11 @@ droplet_locked() {
     curl -fsS -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id > $MESOSCLOUD_TMP/$1.json
 
     if [ $? -ne 0 ]; then
-	err "We couldn't fetch a droplet from api.digitalocean.com :("
+        err "We couldn't fetch a droplet from api.digitalocean.com :("
     fi
 
     if ! python -m json.tool $MESOSCLOUD_TMP/$1.json > /dev/null; then
-	err "We couldn't parse output from api.digitalocean.com :("
+        err "We couldn't parse output from api.digitalocean.com :("
     fi
 
     cat $MESOSCLOUD_TMP/$1.json | python -c "import json, sys; sys.exit(0 if json.load(sys.stdin)['droplet']['locked'] else 1)"
@@ -323,7 +323,7 @@ droplet_delete() {
     id=`droplet_id $1`
 
     if [ -z "$id" ]; then
-	return
+        return
     fi
 
     curl -fsS -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" https://api.digitalocean.com/v2/droplets/$id
@@ -351,14 +351,14 @@ droplet_ssh() {
 
     pids=""
     for name in $1; do
-	ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
-	info "droplet ssh" $name "$ssh_cmd"
-	eval "$ssh_cmd" &
-	pids="$pids $!"
+        ssh_cmd="ssh -o BatchMode=yes root@`droplet_address_public $name` '$2'"
+        info "droplet ssh" $name "$ssh_cmd"
+        eval "$ssh_cmd" &
+        pids="$pids $!"
     done
 
     for pid in $pids; do
-	wait $pid || err "exit status: $?"
+        wait $pid || err "exit status: $?"
     done
 }
 
@@ -370,18 +370,20 @@ do_setup() {
 
     # depends
     if [ "$DIGITALOCEAN_ACCESS_TOKEN" = "" ]; then
-	err "You need to set DIGITALOCEAN_ACCESS_TOKEN"
+        err "You need to set DIGITALOCEAN_ACCESS_TOKEN"
     fi
 
     if [ ! -f ~/.ssh/id_rsa ]; then
-	err "You need an ssh key (missing ~/.ssh/id_rsa)"
+        err "You need an ssh key (missing ~/.ssh/id_rsa)"
     fi
 
     if [ ! -f ~/.ssh/id_rsa.pub ]; then
-	err "You need an ssh key (missing ~/.ssh/id_rsa.pub)"
+        err "You need an ssh key (missing ~/.ssh/id_rsa.pub)"
     fi
 
-    SSH_KEY_FINGERPRINT=`ssh-keygen -f ~/.ssh/id_rsa.pub -l | awk '{print $2}'`
+    if [ -z "$SSH_KEY_FINGERPRINT" ]; then
+        SSH_KEY_FINGERPRINT=`ssh-keygen -E md5 -f ~/.ssh/id_rsa.pub -l | awk '{print $2}' | sed 's/^MD5://'`
+    fi
 
     #
     mkdir -p $MESOSCLOUD_TMP
@@ -401,13 +403,13 @@ do_create() {
     mkdir -p $MESOSCLOUD_TMP
 
     for name in $MESOSCLOUD_NODES; do
-	droplet_exists $name || droplet_create $name
+        droplet_exists $name || droplet_create $name
     done
 
     for name in $MESOSCLOUD_NODES; do
-	while droplet_locked $name; do
+        while droplet_locked $name; do
             sleep 1
-	done
+        done
     done
 
     #
@@ -417,16 +419,16 @@ do_create() {
     say "Let's make sure we can connect."
 
     for name in $MESOSCLOUD_NODES; do
-	info "ssh-keygen -R" $name
-	ssh-keygen -R `droplet_address_public $name`
+        info "ssh-keygen -R" $name
+        ssh-keygen -R `droplet_address_public $name`
     done
 
     for name in $MESOSCLOUD_NODES; do
-	info "droplet ssh" $name
-	while true; do
-	    ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@`droplet_address_public $name` true && break
-	    sleep 1
-	done
+        info "droplet ssh" $name
+        while true; do
+            ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@`droplet_address_public $name` true && break
+            sleep 1
+        done
     done
 }
 
@@ -436,33 +438,33 @@ do_ssh() {
 
     shift
     case $name in
-	nodes)
-	    for name in $MESOSCLOUD_NODES; do
-		ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
-	    done
-	    for name in $MESOSCLOUD_NODES; do
-		wait
-	    done
-	    ;;
-	masters)
-	    for name in $MESOSCLOUD_MASTERS; do
-		ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
-	    done
-	    for name in $MESOSCLOUD_MASTERS; do
-		wait
-	    done
-	    ;;
+        nodes)
+            for name in $MESOSCLOUD_NODES; do
+                ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
+            done
+            for name in $MESOSCLOUD_NODES; do
+                wait
+            done
+            ;;
+        masters)
+            for name in $MESOSCLOUD_MASTERS; do
+                ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
+            done
+            for name in $MESOSCLOUD_MASTERS; do
+                wait
+            done
+            ;;
         slaves)
-	    for name in $MESOSCLOUD_SLAVES; do
-		ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
-	    done
-	    for name in $MESOSCLOUD_SLAVES; do
-		wait
-	    done
-	    ;;
-	*)
-	    exec ssh -o BatchMode=yes root@`droplet_address_public $name` "$@"
-	    ;;
+            for name in $MESOSCLOUD_SLAVES; do
+                ssh -o BatchMode=yes root@`droplet_address_public $name` "$@" &
+            done
+            for name in $MESOSCLOUD_SLAVES; do
+                wait
+            done
+            ;;
+        *)
+            exec ssh -o BatchMode=yes root@`droplet_address_public $name` "$@"
+            ;;
     esac
 }
 
@@ -472,7 +474,7 @@ do_delete() {
     say "We're going to delete your droplets ($MESOSCLOUD_NODES)."
 
     for name in $MESOSCLOUD_NODES; do
-	droplet_delete $name
+        droplet_delete $name
     done
 
     rm -rf $MESOSCLOUD_TMP
@@ -501,20 +503,20 @@ do_connect() {
     P=$!
 
     while true; do
-	nc -z localhost 8080 && break
-	sleep 0.1
+        nc -z localhost 8080 && break
+        sleep 0.1
     done
     open http://localhost:8080
 
     while true; do
-	nc -z localhost 5050 && break
-	sleep 0.1
+        nc -z localhost 5050 && break
+        sleep 0.1
     done
     open http://localhost:5050
 
     while true; do
-	nc -z localhost 4400 && break
-	sleep 0.1
+        nc -z localhost 4400 && break
+        sleep 0.1
     done
     open http://localhost:4400
 
@@ -522,7 +524,7 @@ do_connect() {
     read resp
 
     if [ "$resp" = no ]; then
-	return
+        return
     fi
 
     kill $P
@@ -537,13 +539,13 @@ do_rsync() {
     path=`python -c "import re, sys; print re.search(r'(?!.*@)(.*?):(.*)', sys.argv[-1] if ':' in sys.argv[-1] else sys.argv[-2]).group(2)" "$@"`
 
     if [ $? -ne 0 ]; then
-	exit 1
+        exit 1
     fi
 
     if python -c "import re, sys; sys.exit(0 if re.search(r'(?!.*@)(.*?):(.*)', sys.argv[-1]) else 1)" "$@"; then
-	exec python -c "import subprocess, sys; sys.exit(subprocess.Popen(['rsync', '-e', 'ssh -o BatchMode=yes'] + sys.argv[2:-1] + ['root@`droplet_address_public $name`:$path']).wait())" "$@"
+        exec python -c "import subprocess, sys; sys.exit(subprocess.Popen(['rsync', '-e', 'ssh -o BatchMode=yes'] + sys.argv[2:-1] + ['root@`droplet_address_public $name`:$path']).wait())" "$@"
     else
-	exec python -c "import subprocess, sys; sys.exit(subprocess.Popen(['rsync', '-e', 'ssh -o BatchMode=yes'] + sys.argv[2:-2] + ['root@`droplet_address_public $name`:$path'] + sys.argv[-1:]).wait())" "$@"
+        exec python -c "import subprocess, sys; sys.exit(subprocess.Popen(['rsync', '-e', 'ssh -o BatchMode=yes'] + sys.argv[2:-2] + ['root@`droplet_address_public $name`:$path'] + sys.argv[-1:]).wait())" "$@"
     fi
 }
 
@@ -578,7 +580,7 @@ setup_events() {
     droplet_ssh "$MESOSCLOUD_NODES" "docker pull $IMAGE_EVENTS"
 
     for name in $MESOSCLOUD_NODES; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^events\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_EVENTS * 200000)\"` \
 -v /var/run/docker.sock:/var/run/docker.sock \
@@ -595,25 +597,25 @@ setup_zookeeper() {
 
     SERVERS=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$SERVERS" ]; then
-	    SERVERS="`droplet_address_private $name`"
-	else
-	    SERVERS="$SERVERS,`droplet_address_private $name`"
-	fi
+        if [ -z "$SERVERS" ]; then
+            SERVERS="`droplet_address_private $name`"
+        else
+            SERVERS="$SERVERS,`droplet_address_private $name`"
+        fi
     done
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^zookeeper\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_ZOOKEEPER * 200000)\"` \
 -e MYID=`echo $name | awk -F- '{print $NF}'` \
 -e SERVERS=$SERVERS \
 --name=zookeeper --net=host --restart=always $IMAGE_ZOOKEEPER\
 "
-	while true; do
-	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 2181" && break
-	    sleep 1
-	done
+        while true; do
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 2181" && break
+            sleep 1
+        done
     done
 }
 
@@ -624,11 +626,11 @@ setup_mesos_master() {
 
     MESOS_ZK=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$MESOS_ZK" ]; then
-	    MESOS_ZK="zk://`droplet_address_private $name`:2181"
-	else
-	    MESOS_ZK="$MESOS_ZK,`droplet_address_private $name`:2181"
-	fi
+        if [ -z "$MESOS_ZK" ]; then
+            MESOS_ZK="zk://`droplet_address_private $name`:2181"
+        else
+            MESOS_ZK="$MESOS_ZK,`droplet_address_private $name`:2181"
+        fi
     done
     MESOS_ZK="$MESOS_ZK/mesos"
 
@@ -648,7 +650,7 @@ setup_mesos_master() {
     MESOS_QUORUM=`python -c "print max((len('$MESOSCLOUD_MASTERS'.split()) / 2) + 1, 1)"`
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^master\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MESOS_MASTER * 200000)\"` \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
@@ -658,10 +660,10 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^master\\\$ || docker run 
 -e SECRET=$MESOS_SECRET \
 --name=master --net=host --restart=always $IMAGE_MESOS_MASTER\
 "
-	while true; do
-	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5050" && break
-	    sleep 1
-	done
+        while true; do
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5050" && break
+            sleep 1
+        done
     done
 }
 
@@ -672,16 +674,16 @@ setup_mesos_slave() {
 
     MESOS_MASTER=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$MESOS_MASTER" ]; then
-	    MESOS_MASTER="zk://`droplet_address_private $name`:2181"
-	else
-	    MESOS_MASTER="$MESOS_MASTER,`droplet_address_private $name`:2181"
-	fi
+        if [ -z "$MESOS_MASTER" ]; then
+            MESOS_MASTER="zk://`droplet_address_private $name`:2181"
+        else
+            MESOS_MASTER="$MESOS_MASTER,`droplet_address_private $name`:2181"
+        fi
     done
     MESOS_MASTER="$MESOS_MASTER/mesos"
 
     for name in $MESOSCLOUD_SLAVES; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^slave\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MESOS_SLAVE * 200000)\"` \
 -e MESOS_HOSTNAME=`droplet_address_private $name` \
@@ -692,10 +694,10 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^slave\\\$ || docker run -
 -v /var/run/docker.sock:/var/run/docker.sock \
 --name=slave --net=host --privileged --restart=always $IMAGE_MESOS_SLAVE\
 "
-	while true; do
-	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5051" && break
-	    sleep 1
-	done
+        while true; do
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5051" && break
+            sleep 1
+        done
     done
 }
 
@@ -706,26 +708,26 @@ setup_marathon() {
 
     MARATHON_MASTER=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$MARATHON_MASTER" ]; then
-	    MARATHON_MASTER="zk://`droplet_address_private $name`:2181"
-	else
-	    MARATHON_MASTER="$MARATHON_MASTER,`droplet_address_private $name`:2181"
-	fi
+        if [ -z "$MARATHON_MASTER" ]; then
+            MARATHON_MASTER="zk://`droplet_address_private $name`:2181"
+        else
+            MARATHON_MASTER="$MARATHON_MASTER,`droplet_address_private $name`:2181"
+        fi
     done
     MARATHON_MASTER="$MARATHON_MASTER/mesos"
 
     MARATHON_ZK=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$MARATHON_ZK" ]; then
-	    MARATHON_ZK="zk://`droplet_address_private $name`:2181"
-	else
-	    MARATHON_ZK="$MARATHON_ZK,`droplet_address_private $name`:2181"
-	fi
+        if [ -z "$MARATHON_ZK" ]; then
+            MARATHON_ZK="zk://`droplet_address_private $name`:2181"
+        else
+            MARATHON_ZK="$MARATHON_ZK,`droplet_address_private $name`:2181"
+        fi
     done
     MARATHON_ZK="$MARATHON_ZK/marathon"
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_MARATHON * 200000)\"` \
 -e MARATHON_HOSTNAME=`droplet_address_private $name` \
@@ -737,10 +739,10 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker ru
 -e SECRET=$MESOS_SECRET \
 --name=marathon --net=host --restart=always $IMAGE_MARATHON\
 "
-	while true; do
-	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 8080" && break
-	    sleep 1
-	done
+        while true; do
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 8080" && break
+            sleep 1
+        done
     done
 }
 
@@ -751,25 +753,25 @@ setup_chronos() {
 
     CHRONOS_MASTER=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$CHRONOS_MASTER" ]; then
-	    CHRONOS_MASTER="zk://`droplet_address_private $name`:2181"
-	else
-	    CHRONOS_MASTER="$CHRONOS_MASTER,`droplet_address_private $name`:2181"
-	fi
+        if [ -z "$CHRONOS_MASTER" ]; then
+            CHRONOS_MASTER="zk://`droplet_address_private $name`:2181"
+        else
+            CHRONOS_MASTER="$CHRONOS_MASTER,`droplet_address_private $name`:2181"
+        fi
     done
     CHRONOS_MASTER="$CHRONOS_MASTER/mesos"
 
     CHRONOS_ZK_HOSTS=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$CHRONOS_ZK_HOSTS" ]; then
-	    CHRONOS_ZK_HOSTS="`droplet_address_private $name`:2181"
-	else
-	    CHRONOS_ZK_HOSTS="$CHRONOS_ZK_HOSTS,`droplet_address_private $name`:2181"
-	fi
+        if [ -z "$CHRONOS_ZK_HOSTS" ]; then
+            CHRONOS_ZK_HOSTS="`droplet_address_private $name`:2181"
+        else
+            CHRONOS_ZK_HOSTS="$CHRONOS_ZK_HOSTS,`droplet_address_private $name`:2181"
+        fi
     done
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_CHRONOS * 200000)\"` \
 -e CHRONOS_HOSTNAME=`droplet_address_private $name` \
@@ -781,10 +783,10 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run
 -e SECRET=$MESOS_SECRET \
 --name=chronos --net=host --restart=always $IMAGE_CHRONOS\
 "
-	while true; do
-	    ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 4400" && break
-	    sleep 1
-	done
+        while true; do
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 4400" && break
+            sleep 1
+        done
     done
 }
 
@@ -794,7 +796,7 @@ setup_haproxy_marathon() {
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_HAPROXY_MARATHON"
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy-marathon\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_HAPROXY_MARATHON * 200000)\"` \
 -e MARATHON=`droplet_address_private $name`:8080 \
@@ -810,16 +812,16 @@ setup_haproxy() {
     droplet_ssh "$MESOSCLOUD_NODES" "docker pull $IMAGE_HAPROXY"
 
     for name in $MESOSCLOUD_NODES; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_HAPROXY * 200000)\"` \
 -e ZK=`droplet_address_private $name`:2181 \
 --name=haproxy --net=host --privileged --restart=always $IMAGE_HAPROXY\
 "
-	while true; do
-	    nc -vz `droplet_address_public $name` 80 && break
-	    sleep 1
-	done
+        while true; do
+            nc -vz `droplet_address_public $name` 80 && break
+            sleep 1
+        done
     done
 }
 
@@ -830,15 +832,15 @@ setup_elasticsearch() {
 
     HOSTS=""
     for name in $MESOSCLOUD_MASTERS; do
-	if [ -z "$HOSTS" ]; then
-	    HOSTS="`droplet_address_private $name`"
-	else
-	    HOSTS="$HOSTS,`droplet_address_private $name`"
-	fi
+        if [ -z "$HOSTS" ]; then
+            HOSTS="`droplet_address_private $name`"
+        else
+            HOSTS="$HOSTS,`droplet_address_private $name`"
+        fi
     done
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^elasticsearch\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_ELASTICSEARCH * 200000)\"` \
 -v /srv/elasticsearch/data:/opt/elasticsearch/data \
@@ -857,7 +859,7 @@ setup_logstash() {
     droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_LOGSTASH"
 
     for name in $MESOSCLOUD_MASTERS; do
-	droplet_ssh $name "\
+        droplet_ssh $name "\
 docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^logstash\\\$ || docker run -d \
 --cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_LOGSTASH * 200000)\"` \
 -v /srv/events:/srv/events \
@@ -948,25 +950,25 @@ main() {
     do_setup "$@"
 
     if [ -n "$1" ]; then
-	eval do_$1 "$@"
-	exit 0
+        eval do_$1 "$@"
+        exit 0
     fi
 
     do_create "$@"
 
     setup_docker
-    setup_events
+    #setup_events
     setup_zookeeper
     setup_mesos_master
     setup_mesos_slave
     setup_marathon
     setup_chronos
-    setup_haproxy_marathon
-    setup_haproxy
-    setup_elasticsearch
-    setup_logstash
-    setup_elasticsearch_curator
-    #setup_kibana
+    #setup_haproxy_marathon
+    #setup_haproxy
+    #setup_elasticsearch
+    #setup_logstash
+    #setup_elasticsearch_curator
+    ##setup_kibana
 
     do_status
 }
