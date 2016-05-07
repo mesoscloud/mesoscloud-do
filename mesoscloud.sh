@@ -213,7 +213,6 @@ status          `droplet_status $1`
 size            `droplet_size $1`
 region          `droplet_region $1`
 image           `droplet_image $1`
-kernel          `droplet_kernel $1`
 address public  `droplet_address_public $1`
 address private `droplet_address_private $1`
 EOF
@@ -273,16 +272,6 @@ droplet_image() {
     cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
 
     cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print('%(distribution)s %(name)s' % [d['image'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
-}
-
-droplet_kernel() {
-    test -n "$1" || err "usage: droplet_kernel <name>"
-
-    droplets
-
-    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; sys.exit(0 if [d for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'] else 1)" || return 1
-
-    cat $MESOSCLOUD_TMP/droplets.json | python -c "import json, sys; print('%(version)s' % [d['kernel'] for d in json.load(sys.stdin)['droplets'] if d['name'] == '$1'][-1])"
 }
 
 droplet_size() {
