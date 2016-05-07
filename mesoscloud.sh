@@ -41,7 +41,7 @@ IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.28.1-ubuntu
 IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:1.1.1-ubuntu`
 IMAGE_CHRONOS=`config IMAGE_CHRONOS mesoscloud/chronos:2.4.0-ubuntu`
 IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-marathon:0.2.1`
-IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.14-ubuntu`
+IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.17-ubuntu`
 IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.2-ubuntu`
 IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu`
 IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.2-ubuntu`
@@ -492,19 +492,19 @@ do_connect() {
     P=$!
 
     while true; do
-        nc -z localhost 8080 && break
+        nc localhost 8080 < /dev/null > /dev/null && break
         sleep 0.1
     done
     open http://localhost:8080
 
     while true; do
-        nc -z localhost 5050 && break
+        nc localhost 5050 < /dev/null > /dev/null && break
         sleep 0.1
     done
     open http://localhost:5050
 
     while true; do
-        nc -z localhost 4400 && break
+        nc localhost 4400 < /dev/null > /dev/null && break
         sleep 0.1
     done
     open http://localhost:4400
@@ -602,7 +602,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^zookeeper\\\$ || docker r
 --name=zookeeper --net=host --restart=always $IMAGE_ZOOKEEPER\
 "
         while true; do
-            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 2181" && break
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -v `droplet_address_private $name` 2181 < /dev/null > /dev/null" && break
             sleep 1
         done
     done
@@ -650,7 +650,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^master\\\$ || docker run 
 --name=master --net=host --restart=always $IMAGE_MESOS_MASTER\
 "
         while true; do
-            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5050" && break
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -v `droplet_address_private $name` 5050 < /dev/null > /dev/null" && break
             sleep 1
         done
     done
@@ -684,7 +684,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^slave\\\$ || docker run -
 --name=slave --net=host --privileged --restart=always $IMAGE_MESOS_SLAVE\
 "
         while true; do
-            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 5051" && break
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -v `droplet_address_private $name` 5051 < /dev/null > /dev/null" && break
             sleep 1
         done
     done
@@ -729,7 +729,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^marathon\\\$ || docker ru
 --name=marathon --net=host --restart=always $IMAGE_MARATHON\
 "
         while true; do
-            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 8080" && break
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -v `droplet_address_private $name` 8080 < /dev/null > /dev/null" && break
             sleep 1
         done
     done
@@ -773,7 +773,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run
 --name=chronos --net=host --restart=always $IMAGE_CHRONOS\
 "
         while true; do
-            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -vz `droplet_address_private $name` 4400" && break
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -v `droplet_address_private $name` 4400 < /dev/null > /dev/null" && break
             sleep 1
         done
     done
@@ -808,7 +808,7 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run
 --name=haproxy --net=host --privileged --restart=always $IMAGE_HAPROXY\
 "
         while true; do
-            nc -vz `droplet_address_public $name` 80 && break
+            nc -v `droplet_address_public $name` 80 < /dev/null > /dev/null && break
             sleep 1
         done
     done
