@@ -477,46 +477,34 @@ do_status() {
     done
 
     say "It's time to connect to your mesoscloud!"
-
-    info "SSH example:"
     echo ""
-
-    echo "A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_private ${MESOSCLOUD_NAME}-1`"
-
-    echo "ssh -L 5050:\$B:5050 -L 8080:\$B:8080 -L 4400:\$B:4400 -L 9200:\$B:9200 root@\$A"
+    info "Terminal 1:"
+    echo ""
+    echo "./mesoscloud.sh connect"
 }
 
 do_connect() {
-    A=`droplet_address_public ${MESOSCLOUD_NAME}-1`; B=`droplet_address_private ${MESOSCLOUD_NAME}-1`
-    ssh -N -o ServerAliveInterval=300 -L 5050:$B:5050 -L 8080:$B:8080 -L 4400:$B:4400 -L 9200:$B:9200 root@$A sleep 300 &
+    ssh -D 5000 -N -o ServerAliveInterval=300 root@`droplet_address_public ${MESOSCLOUD_NAME}-1` &
     P=$!
+    trap "kill $P; exit 0" SIGINT SIGQUIT SIGTERM
+
+    say "It's time to connect to your mesoscloud!"
+    echo ""
+    info "Terminal 2:"
+    echo ""
+    echo "NODE1=`droplet_address_private ${MESOSCLOUD_NAME}-1`"
+    echo "NODE2=`droplet_address_private ${MESOSCLOUD_NAME}-2`"
+    echo "NODE3=`droplet_address_private ${MESOSCLOUD_NAME}-3`"
+    echo ""
+    echo "e.g."
+    echo ""
+    echo "curl -x socks5://localhost:5000 http://\$NODE1:5050"
+    echo ""
+    echo "Ctrl-c to interrupt..."
 
     while true; do
-        nc localhost 8080 < /dev/null > /dev/null && break
-        sleep 0.1
+        sleep 1
     done
-    open http://localhost:8080
-
-    while true; do
-        nc localhost 5050 < /dev/null > /dev/null && break
-        sleep 0.1
-    done
-    open http://localhost:5050
-
-    while true; do
-        nc localhost 4400 < /dev/null > /dev/null && break
-        sleep 0.1
-    done
-    open http://localhost:4400
-
-    echo "terminate ssh connection [yes]? "
-    read resp
-
-    if [ "$resp" = no ]; then
-        return
-    fi
-
-    kill $P
 }
 
 do_sftp() {
@@ -952,8 +940,8 @@ main() {
     setup_mesos_slave
     setup_marathon
     setup_chronos
-    #setup_haproxy_marathon
-    #setup_haproxy
+    setup_haproxy_marathon
+    setup_haproxy
     #setup_elasticsearch
     #setup_logstash
     #setup_elasticsearch_curator
