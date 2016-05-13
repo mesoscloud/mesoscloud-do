@@ -40,7 +40,6 @@ IMAGE_MESOS_MASTER=`config IMAGE_MESOS_MASTER mesoscloud/mesos-master:0.28.1-ubu
 IMAGE_MESOS_SLAVE=`config IMAGE_MESOS_SLAVE mesoscloud/mesos-slave:0.28.1-ubuntu`
 IMAGE_MARATHON=`config IMAGE_MARATHON mesoscloud/marathon:1.1.1-ubuntu`
 IMAGE_CHRONOS=`config IMAGE_CHRONOS mesoscloud/chronos:2.4.0-ubuntu`
-IMAGE_HAPROXY_MARATHON=`config IMAGE_HAPROXY_MARATHON mesoscloud/haproxy-marathon:0.2.1`
 IMAGE_HAPROXY=`config IMAGE_HAPROXY mesoscloud/haproxy:1.5.17-ubuntu`
 IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.2-ubuntu`
 IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu`
@@ -61,6 +60,10 @@ CPU_KIBANA=`config CPU_KIBANA 1.0`
 
 # mesos
 MESOS_SECRET=`config MESOS_SECRET "$(password 32)"`
+
+# apps
+APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 1.0.0`
+APP_RIEMANN=`config APP_RIEMANN 0.2.11-1`
 
 # write mesoscloud.cfg.current
 config_write() {
@@ -106,6 +109,10 @@ kibana: $CPU_KIBANA
 
 [mesos]
 secret: $MESOS_SECRET
+
+[app]
+haproxy_marathon: $APP_HAPROXY_MARATHON
+riemann: $APP_RIEMANN
 EOF
 }
 
@@ -767,22 +774,6 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^chronos\\\$ || docker run
     done
 }
 
-setup_haproxy_marathon() {
-    say "Let's setup the haproxy-marathon container"
-
-    droplet_ssh "$MESOSCLOUD_MASTERS" "docker pull $IMAGE_HAPROXY_MARATHON"
-
-    for name in $MESOSCLOUD_MASTERS; do
-        droplet_ssh $name "\
-docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy-marathon\\\$ || docker run -d \
---cpu-period=200000 --cpu-quota=`python -c \"print int($CPU_HAPROXY_MARATHON * 200000)\"` \
--e MARATHON=`droplet_address_private $name`:8080 \
--e ZK=`droplet_address_private $name`:2181 \
---name=haproxy-marathon --net=host --restart=always $IMAGE_HAPROXY_MARATHON\
-"
-    done
-}
-
 setup_haproxy() {
     say "Let's setup the haproxy container"
 
@@ -795,10 +786,10 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run
 -e ZK=`droplet_address_private $name`:2181 \
 --name=haproxy --net=host --privileged --restart=always $IMAGE_HAPROXY\
 "
-        while true; do
-            nc -v `droplet_address_public $name` 80 < /dev/null > /dev/null && break
-            sleep 1
-        done
+        #while true; do
+        #    nc -v `droplet_address_public $name` 80 < /dev/null > /dev/null && break
+        #    sleep 1
+        #done
     done
 }
 
@@ -917,6 +908,18 @@ curl -L -H \"Content-Type: application/json\" -X POST -d @app.json `droplet_addr
 "
 }
 
+setup_haproxy_marathon_app() {
+    say "Let's setup the haproxy-marathon app"
+
+    curl -fLsS https://raw.githubusercontent.com/mesoscloud/haproxy-marathon-app/$(echo $APP_HAPROXY_MARATHON | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_HAPROXY_MARATHON'; json.dump(app, sys.stdout)" | do_app
+}
+
+setup_riemann_app() {
+    say "Let's setup the riemann app"
+
+    curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-app/$(echo $APP_RIEMANN | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN'; json.dump(app, sys.stdout)" | do_app
+}
+
 #
 # main
 #
@@ -940,12 +943,14 @@ main() {
     setup_mesos_slave
     setup_marathon
     setup_chronos
-    setup_haproxy_marathon
     setup_haproxy
     #setup_elasticsearch
     #setup_logstash
     #setup_elasticsearch_curator
     ##setup_kibana
+
+    setup_haproxy_marathon_app
+    setup_riemann_app
 
     do_status
 }
