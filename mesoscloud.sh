@@ -45,6 +45,10 @@ IMAGE_ELASTICSEARCH=`config IMAGE_ELASTICSEARCH mesoscloud/elasticsearch:1.7.2-u
 IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu`
 IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.2-ubuntu`
 
+# apps
+APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.0.0`
+APP_RIEMANN=`config APP_RIEMANN 0.2.11-2`
+
 # cpu
 CPU_EVENTS=`config CPU_EVENTS 1.0`
 CPU_ZOOKEEPER=`config CPU_ZOOKEEPER 1.0`
@@ -60,10 +64,6 @@ CPU_KIBANA=`config CPU_KIBANA 1.0`
 
 # mesos
 MESOS_SECRET=`config MESOS_SECRET "$(password 32)"`
-
-# apps
-APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.0.0`
-APP_RIEMANN=`config APP_RIEMANN 0.2.11-2`
 
 # write mesoscloud.cfg.current
 config_write() {
@@ -94,6 +94,10 @@ elasticsearch: $IMAGE_ELASTICSEARCH
 logstash: $IMAGE_LOGSTASH
 kibana: $IMAGE_KIBANA
 
+[app]
+haproxy_marathon: $APP_HAPROXY_MARATHON
+riemann: $APP_RIEMANN
+
 [cpu]
 events: $CPU_EVENTS
 zookeeper: $CPU_ZOOKEEPER
@@ -109,10 +113,6 @@ kibana: $CPU_KIBANA
 
 [mesos]
 secret: $MESOS_SECRET
-
-[app]
-haproxy_marathon: $APP_HAPROXY_MARATHON
-riemann: $APP_RIEMANN
 EOF
 }
 
@@ -793,10 +793,11 @@ docker ps | sed 1d | awk \"{print \\\$NF}\" | grep -q ^haproxy\\\$ || docker run
 -e ZK=`droplet_address_private $name`:2181 \
 --name=haproxy --net=host --privileged --restart=always $IMAGE_HAPROXY\
 "
-        #while true; do
-        #    nc -v `droplet_address_public $name` 80 < /dev/null > /dev/null && break
-        #    sleep 1
-        #done
+        while true; do
+            # depends on setup_riemann_app for port 5556
+            ssh -o BatchMode=yes root@`droplet_address_public $name` "nc -v `droplet_address_private $name` 5555 < /dev/null > /dev/null" && break
+            sleep 1
+        done
     done
 }
 
@@ -952,14 +953,13 @@ main() {
     setup_mesos_slave
     setup_marathon
     setup_chronos
+    setup_haproxy_marathon_app
+    setup_riemann_app
     setup_haproxy
     #setup_elasticsearch
     #setup_logstash
     #setup_elasticsearch_curator
     ##setup_kibana
-
-    setup_haproxy_marathon_app
-    setup_riemann_app
 
     do_status
 }
