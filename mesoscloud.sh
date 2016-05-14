@@ -62,8 +62,8 @@ CPU_KIBANA=`config CPU_KIBANA 1.0`
 MESOS_SECRET=`config MESOS_SECRET "$(password 32)"`
 
 # apps
-APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 1.0.0`
-APP_RIEMANN=`config APP_RIEMANN 0.2.11-1`
+APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.0.0`
+APP_RIEMANN=`config APP_RIEMANN 0.2.11-2`
 
 # write mesoscloud.cfg.current
 config_write() {
