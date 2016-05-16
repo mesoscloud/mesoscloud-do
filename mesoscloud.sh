@@ -48,6 +48,7 @@ IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.2-ubuntu`
 # apps
 APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.0.0`
 APP_RIEMANN=`config APP_RIEMANN 0.2.11-3`
+APP_RIEMANN_MESOS=`config APP_RIEMANN_MESOS 0.1.1-1`
 APP_DASHBOARD=`config APP_DASHBOARD 1.0.0`
 
 # cpu
@@ -932,6 +933,12 @@ setup_riemann_app() {
     curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-app/$(echo $APP_RIEMANN | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN'; json.dump(app, sys.stdout)" | do_app
 }
 
+setup_riemann_mesos_app() {
+    say "Let's setup the riemann-mesos app"
+
+    curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-mesos-app/$(echo $APP_RIEMANN_MESOS | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN_MESOS'; json.dump(app, sys.stdout)" | do_app
+}
+
 setup_dashboard_app() {
     say "Let's setup the dashboard app"
 
@@ -963,6 +970,7 @@ main() {
     setup_chronos
     setup_haproxy_marathon_app
     setup_riemann_app
+    setup_riemann_mesos_app
     setup_haproxy
     #setup_elasticsearch
     #setup_logstash
