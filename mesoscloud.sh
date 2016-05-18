@@ -99,6 +99,7 @@ kibana: $IMAGE_KIBANA
 [app]
 haproxy_marathon: $APP_HAPROXY_MARATHON
 riemann: $APP_RIEMANN
+riemann_mesos: $APP_RIEMANN_MESOS
 dashboard: $APP_DASHBOARD
 
 [cpu]
