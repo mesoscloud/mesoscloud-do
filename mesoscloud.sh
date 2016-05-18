@@ -47,7 +47,9 @@ IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.2-ubuntu`
 
 # apps
 APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.0.0`
-APP_RIEMANN=`config APP_RIEMANN 0.2.11-2`
+APP_RIEMANN=`config APP_RIEMANN 0.2.11-3`
+APP_RIEMANN_MESOS=`config APP_RIEMANN_MESOS 0.1.1-1`
+APP_DASHBOARD=`config APP_DASHBOARD 0.1.0`
 
 # cpu
 CPU_EVENTS=`config CPU_EVENTS 1.0`
@@ -97,6 +99,8 @@ kibana: $IMAGE_KIBANA
 [app]
 haproxy_marathon: $APP_HAPROXY_MARATHON
 riemann: $APP_RIEMANN
+riemann_mesos: $APP_RIEMANN_MESOS
+dashboard: $APP_DASHBOARD
 
 [cpu]
 events: $CPU_EVENTS
@@ -930,6 +934,18 @@ setup_riemann_app() {
     curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-app/$(echo $APP_RIEMANN | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN'; json.dump(app, sys.stdout)" | do_app
 }
 
+setup_riemann_mesos_app() {
+    say "Let's setup the riemann-mesos app"
+
+    curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-mesos-app/$(echo $APP_RIEMANN_MESOS | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN_MESOS'; json.dump(app, sys.stdout)" | do_app
+}
+
+setup_dashboard_app() {
+    say "Let's setup the dashboard app"
+
+    curl -fLsS https://raw.githubusercontent.com/mesoscloud/dashboard-app/$(echo $APP_DASHBOARD | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_DASHBOARD'; json.dump(app, sys.stdout)" | do_app
+}
+
 #
 # main
 #
@@ -955,11 +971,14 @@ main() {
     setup_chronos
     setup_haproxy_marathon_app
     setup_riemann_app
+    setup_riemann_mesos_app
     setup_haproxy
     #setup_elasticsearch
     #setup_logstash
     #setup_elasticsearch_curator
     ##setup_kibana
+
+    setup_dashboard_app
 
     do_status
 }
