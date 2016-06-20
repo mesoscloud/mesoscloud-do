@@ -46,9 +46,10 @@ IMAGE_LOGSTASH=`config IMAGE_LOGSTASH mesoscloud/logstash:1.5.4-ubuntu`
 IMAGE_KIBANA=`config IMAGE_KIBANA mesoscloud/kibana:4.1.2-ubuntu`
 
 # apps
-APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.0.0`
+APP_HAPROXY_MARATHON=`config APP_HAPROXY_MARATHON 2.2.0`
 APP_RIEMANN=`config APP_RIEMANN 0.2.11-3`
 APP_RIEMANN_MESOS=`config APP_RIEMANN_MESOS 0.1.1-1`
+APP_RIEMANN_HAPROXY=`config APP_RIEMANN_HAPROXY 0.2.10-2`
 APP_DASHBOARD=`config APP_DASHBOARD 0.2.0`
 
 # cpu
@@ -100,6 +101,7 @@ kibana: $IMAGE_KIBANA
 haproxy_marathon: $APP_HAPROXY_MARATHON
 riemann: $APP_RIEMANN
 riemann_mesos: $APP_RIEMANN_MESOS
+riemann_haproxy: $APP_RIEMANN_HAPROXY
 dashboard: $APP_DASHBOARD
 
 [cpu]
@@ -159,9 +161,9 @@ say() {
     printf " _`python -c "print '_' * len('''$@''')"`_\n"
     printf "< $@ >\n"
     printf " -`python -c "print '-' * len('''$@''')"`-\n"
-    printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
-    printf "     \\  (oo)\\_______\n"
-    printf "        (__)\\       )\\/\\"; echo
+    printf "    \\\\   $CYAN^${RESET}__$CYAN^$RESET\n"
+    printf "     \\\\  (oo)\\\\_______\n"
+    printf "        (__)\\\\       )\\\\/\\\\"; echo
     printf "            ||----w |\n"
     printf "            ||     ||\n"
 }
@@ -170,9 +172,9 @@ err() {
     printf " _`python -c "print '_' * len('''$@''')"`_\n"
     printf "< $@ >\n"
     printf " -`python -c "print '-' * len('''$@''')"`-\n"
-    printf "    \\   $CYAN^${RESET}__$CYAN^$RESET\n"
-    printf "     \\  (xx)\\_______\n"
-    printf "        (__)\\       )\\/\\"; echo
+    printf "    \\\\   $CYAN^${RESET}__$CYAN^$RESET\n"
+    printf "     \\\\  (xx)\\\\_______\n"
+    printf "        (__)\\\\       )\\\\/\\\\"; echo
     printf "          U ||----w |\n"
     printf "            ||     ||\n"
     exit 1
@@ -495,17 +497,20 @@ do_status() {
 }
 
 do_connect() {
+
+    echo ssh -D 5000 -N -o ServerAliveInterval=300 root@`droplet_address_public ${MESOSCLOUD_NAME}-1`
+
     ssh -D 5000 -N -o ServerAliveInterval=300 root@`droplet_address_public ${MESOSCLOUD_NAME}-1` &
     P=$!
-    trap "kill $P; exit 0" SIGINT SIGQUIT SIGTERM
+    trap "kill $P; exit 0" 2 3 15
 
     say "It's time to connect to your mesoscloud!"
     echo ""
     info "Terminal 2:"
     echo ""
-    echo "NODE1=`droplet_address_private ${MESOSCLOUD_NAME}-1`"
-    echo "NODE2=`droplet_address_private ${MESOSCLOUD_NAME}-2`"
-    echo "NODE3=`droplet_address_private ${MESOSCLOUD_NAME}-3`"
+    echo "NODE1=`droplet_address_private ${MESOSCLOUD_NAME}-1`\t# public `droplet_address_public ${MESOSCLOUD_NAME}-1`"
+    echo "NODE2=`droplet_address_private ${MESOSCLOUD_NAME}-2`\t# public `droplet_address_public ${MESOSCLOUD_NAME}-2`"
+    echo "NODE3=`droplet_address_private ${MESOSCLOUD_NAME}-3`\t# public `droplet_address_public ${MESOSCLOUD_NAME}-3`"
     echo ""
     echo "e.g."
     echo ""
@@ -940,6 +945,12 @@ setup_riemann_mesos_app() {
     curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-mesos-app/$(echo $APP_RIEMANN_MESOS | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN_MESOS'; json.dump(app, sys.stdout)" | do_app
 }
 
+setup_riemann_haproxy_app() {
+    say "Let's setup the riemann-haproxy app"
+
+    curl -fLsS https://raw.githubusercontent.com/mesoscloud/riemann-haproxy-app/$(echo $APP_RIEMANN_HAPROXY | sed 's/latest/master/')/app.json | python -c "import json, re, sys; app = json.load(sys.stdin); app['container']['docker']['image'] = re.sub(r':[^/]+$', '', app['container']['docker']['image']) + ':' + '$APP_RIEMANN_HAPROXY'; json.dump(app, sys.stdout)" | do_app
+}
+
 setup_dashboard_app() {
     say "Let's setup the dashboard app"
 
@@ -972,6 +983,7 @@ main() {
     setup_haproxy_marathon_app
     setup_riemann_app
     setup_riemann_mesos_app
+    setup_riemann_haproxy_app
     setup_haproxy
     #setup_elasticsearch
     #setup_logstash
